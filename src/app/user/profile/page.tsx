@@ -58,15 +58,6 @@ export default function UserProfile() {
               </dd>
             </div>
             
-            <div>
-              <dt className="text-sm font-medium text-gray-500 flex items-center">
-                <Calendar className="w-4 h-4 mr-2" />
-                Member Since
-              </dt>
-              <dd className="mt-1 text-sm text-gray-900">
-                {new Date(profile.createdAt).toLocaleDateString()}
-              </dd>
-            </div>
             
             <div>
               <dt className="text-sm font-medium text-gray-500 flex items-center">

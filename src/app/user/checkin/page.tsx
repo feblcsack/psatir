@@ -332,7 +332,7 @@ export default function CheckIn() {
             </div>
           </div>
         </div>
-      )  : hasCheckedIn ? (
+      ) : hasCheckedIn ? (
         // User has already checked in
         <div className="bg-green-50 border border-green-200 rounded-2xl p-8 text-center mb-6">
           <CheckCircle className="w-20 h-20 mx-auto text-green-500 mb-4" />
