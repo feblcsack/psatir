@@ -447,6 +447,27 @@ export const getSessionStats = async (sessionId: string): Promise<{
   }
 };
 
+
+export const getTodayCheckInCount = async (): Promise<number> => {
+  try {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Set ke awal hari
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1); // Set ke awal hari berikutnya
+
+    const q = query(
+      collection(db, 'checkInRecords'),
+      where('checkedInAt', '>=', Timestamp.fromDate(today)),
+      where('checkedInAt', '<', Timestamp.fromDate(tomorrow))
+    );
+
+    const snapshot = await getDocs(q);
+    return snapshot.size;
+  } catch (error) {
+    console.error("Error getting today's check-in count:", error);
+    return 0;
+  }
+};
 /**
  * Auto-apply penalties for ended sessions (to be called by cron job or scheduler)
  */

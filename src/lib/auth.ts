@@ -4,7 +4,7 @@ import {
     signOut as firebaseSignOut,
     User 
   } from 'firebase/auth';
-  import { doc, setDoc, getDoc } from 'firebase/firestore';
+  import { doc, setDoc, getDoc, getDocs, collection } from 'firebase/firestore';
   import { auth, db } from './firebase';
   
   export interface UserProfile {
@@ -37,6 +37,17 @@ import {
       return { user, profile: userProfile };
     } catch (error) {
       throw error;
+    }
+  };
+
+  export const getTotalUsers = async (): Promise<number> => {
+    try {
+      const usersCollection = collection(db, 'users');
+      const snapshot = await getDocs(usersCollection);
+      return snapshot.size; // .size langsung memberikan jumlah dokumen
+    } catch (error) {
+      console.error("Error getting total users:", error);
+      return 0;
     }
   };
   

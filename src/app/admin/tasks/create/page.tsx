@@ -85,7 +85,7 @@ export default function CreateTask() {
               rows={5}
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              className="w-full px-3 py-2 border text-slate-600 border-gray-300 rounded-md focus:outline-none"
               placeholder="Describe what users need to do to complete this task..."
             />
           </div>
@@ -97,11 +97,11 @@ export default function CreateTask() {
             <div className="relative">
               <input
                 type="number"
-                min="1"
+                min="0"
                 max="1000"
                 value={formData.expReward}
-                onChange={(e) => setFormData({ ...formData, expReward: parseInt(e.target.value) || 10 })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                onChange={(e) => setFormData({ ...formData, expReward: parseInt(e.target.value) || - 0 })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none text-slate-600"
               />
               <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
                 <span className="text-gray-500 sm:text-sm">EXP</span>
@@ -123,7 +123,7 @@ export default function CreateTask() {
             <button
               type="submit"
               disabled={loading}
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+              className="inline-flex items-center px-4 py-2 border text-sm font-medium rounded-md shadow-sm text-slate-700 bg-white hover:bg-slate-100 transition-colors border-slate-300 disabled:opacity-50"
             >
               {loading ? (
                 <>

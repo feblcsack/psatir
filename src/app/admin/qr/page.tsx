@@ -217,14 +217,14 @@ export default function GenerateQR() {
   return (
     <div className="max-w-7xl mx-auto">
       <div className="mb-8">
-        <div className="flex justify-between items-center">
+        <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">QR Check-in Management</h1>
             <p className="text-gray-600">Create and manage scheduled QR check-in sessions</p>
           </div>
           <button
             onClick={() => setShowCreateForm(true)}
-            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
+            className="inline-flex items-center px-4 py-2 border text-sm font-medium rounded-md text-slate-600 bg-white border-slate-300"
           >
             <QrCode className="w-4 h-4 mr-2" />
             Create New Session
@@ -234,164 +234,189 @@ export default function GenerateQR() {
 
       {/* Create Session Modal */}
       {showCreateForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-2xl w-full max-h-screen overflow-y-auto">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h3 className="text-lg font-medium text-gray-900">Create QR Check-in Session</h3>
-            </div>
-            
-            <form onSubmit={handleCreateSession} className="p-6 space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Session Title *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.title}
-                    onChange={(e) => setFormData({...formData, title: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    placeholder="e.g., Morning Check-in, Team Meeting"
-                  />
-                </div>
+  // Latar belakang overlay dibuat sedikit lebih transparan
+  <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    
+    {/* Kontainer modal dengan sudut lebih bulat dan tanpa shadow yang berlebihan */}
+    <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] flex flex-col">
+      
+      {/* Header Modal */}
+      <div className="px-8 py-5 border-b border-slate-100 flex justify-between items-center">
+        <h3 className="text-xl font-medium text-slate-800">Create QR Session</h3>
+        <button 
+          onClick={() => setShowCreateForm(false)}
+          className="p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full transition-colors"
+          aria-label="Close modal"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+      </div>
+      
+      {/* Form dengan styling minimalis */}
+      <form onSubmit={handleCreateSession} className="p-8 space-y-6 overflow-y-auto">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
+          
+          {/* Input field dengan desain baru */}
+          <div className="md:col-span-2">
+            <label htmlFor="title" className="block text-sm font-medium text-slate-600 mb-1.5">
+              Session Title *
+            </label>
+            <input
+              id="title"
+              type="text"
+              required
+              value={formData.title}
+              onChange={(e) => setFormData({...formData, title: e.target.value})}
+              className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:bg-white transition"
+              placeholder="e.g., Morning Check-in"
+            />
+          </div>
 
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Description
-                  </label>
-                  <textarea
-                    value={formData.description}
-                    onChange={(e) => setFormData({...formData, description: e.target.value})}
-                    rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    placeholder="Optional description for this check-in session"
-                  />
-                </div>
+          <div className="md:col-span-2">
+            <label htmlFor="description" className="block text-sm font-medium text-slate-600 mb-1.5">
+              Description
+            </label>
+            <textarea
+              id="description"
+              value={formData.description}
+              onChange={(e) => setFormData({...formData, description: e.target.value})}
+              rows={3}
+              className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:bg-white transition"
+              placeholder="Optional details about this session"
+            />
+          </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Start Date *
-                  </label>
-                  <input
-                    type="date"
-                    required
-                    value={formData.startDate}
-                    onChange={(e) => setFormData({...formData, startDate: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
-                </div>
+          <div>
+            <label htmlFor="startDate" className="block text-sm font-medium text-slate-600 mb-1.5">
+              Start Date *
+            </label>
+            <input
+              id="startDate"
+              type="date"
+              required
+              value={formData.startDate}
+              onChange={(e) => setFormData({...formData, startDate: e.target.value})}
+              className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:bg-white transition"
+            />
+          </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Start Time *
-                  </label>
-                  <input
-                    type="time"
-                    required
-                    value={formData.startTime}
-                    onChange={(e) => setFormData({...formData, startTime: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
-                </div>
+          <div>
+            <label htmlFor="startTime" className="block text-sm font-medium text-slate-600 mb-1.5">
+              Start Time *
+            </label>
+            <input
+              id="startTime"
+              type="time"
+              required
+              value={formData.startTime}
+              onChange={(e) => setFormData({...formData, startTime: e.target.value})}
+              className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:bg-white transition"
+            />
+          </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    End Date *
-                  </label>
-                  <input
-                    type="date"
-                    required
-                    value={formData.endDate}
-                    onChange={(e) => setFormData({...formData, endDate: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
-                </div>
+          <div>
+            <label htmlFor="endDate" className="block text-sm font-medium text-slate-600 mb-1.5">
+              End Date *
+            </label>
+            <input
+              id="endDate"
+              type="date"
+              required
+              value={formData.endDate}
+              onChange={(e) => setFormData({...formData, endDate: e.target.value})}
+              className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:bg-white transition"
+            />
+          </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    End Time *
-                  </label>
-                  <input
-                    type="time"
-                    required
-                    value={formData.endTime}
-                    onChange={(e) => setFormData({...formData, endTime: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
-                </div>
+          <div>
+            <label htmlFor="endTime" className="block text-sm font-medium text-slate-600 mb-1.5">
+              End Time *
+            </label>
+            <input
+              id="endTime"
+              type="time"
+              required
+              value={formData.endTime}
+              onChange={(e) => setFormData({...formData, endTime: e.target.value})}
+              className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:bg-white transition"
+            />
+          </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    EXP Reward
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={formData.expReward}
-                    onChange={(e) => setFormData({...formData, expReward: parseInt(e.target.value)})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
-                </div>
+          <div>
+            <label htmlFor="expReward" className="block text-sm font-medium text-slate-600 mb-1.5">
+              EXP Reward
+            </label>
+            <input
+              id="expReward"
+              type="number"
+              min="1"
+              value={formData.expReward}
+              onChange={(e) => setFormData({...formData, expReward: parseInt(e.target.value)})}
+              className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:bg-white transition"
+            />
+          </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Penalty EXP
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={formData.penaltyExp}
-                    onChange={(e) => setFormData({...formData, penaltyExp: parseInt(e.target.value)})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
-                </div>
+          <div>
+            <label htmlFor="penaltyExp" className="block text-sm font-medium text-slate-600 mb-1.5">
+              Penalty EXP
+            </label>
+            <input
+              id="penaltyExp"
+              type="number"
+              min="0"
+              value={formData.penaltyExp}
+              onChange={(e) => setFormData({...formData, penaltyExp: parseInt(e.target.value)})}
+              className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:bg-white transition"
+            />
+          </div>
 
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    All Users *
-                  </label>
-                  <textarea
-                    required
-                    value={formData.requiredUsers}
-                    onChange={(e) => setFormData({...formData, requiredUsers: e.target.value})}
-                    rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    placeholder="Enter user IDs or emails separated by commas. All listed users will get penalties if they don't check-in."
-                  />
-                  <p className="text-sm text-gray-500 mt-1">
-                    All users who should participate in this session. Those who don't check-in will receive penalties.
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
-                <button
-                  type="button"
-                  onClick={() => setShowCreateForm(false)}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50"
-                >
-                  {loading ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                      Creating...
-                    </>
-                  ) : (
-                    'Create Session'
-                  )}
-                </button>
-              </div>
-            </form>
+          <div className="md:col-span-2">
+            <label htmlFor="requiredUsers" className="block text-sm font-medium text-slate-600 mb-1.5">
+              Required Users *
+            </label>
+            <textarea
+              id="requiredUsers"
+              required
+              value={formData.requiredUsers}
+              onChange={(e) => setFormData({...formData, requiredUsers: e.target.value})}
+              rows={3}
+              className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:bg-white transition"
+              placeholder="Enter user IDs separated by commas"
+            />
+            <p className="text-xs text-slate-400 mt-2">
+              Users who don't check-in will receive penalties.
+            </p>
           </div>
         </div>
-      )}
+
+        {/* Tombol Aksi dengan desain baru */}
+        <div className="flex justify-end space-x-3 pt-5 border-t border-slate-100">
+          <button
+            type="button"
+            onClick={() => setShowCreateForm(false)}
+            className="px-5 py-2.5 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={loading}
+            className="inline-flex items-center px-5 py-2.5 text-sm font-medium rounded-lg text-white bg-slate-800 hover:bg-slate-900 disabled:opacity-50 transition-colors"
+          >
+            {loading ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                Creating...
+              </>
+            ) : (
+              'Create Session'
+            )}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+)}
 
       {/* Sessions List */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

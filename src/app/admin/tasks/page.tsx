@@ -60,16 +60,22 @@ export default function ManageTasks() {
     );
   }
 
-  return (
-    <div>
-      <div className="mb-8 flex justify-between items-center">
+  // Asumsi Anda sudah memiliki semua state dan fungsi (handleDelete, tasks, dll)
+// di atas bagian return ini.
+
+return (
+  // Latar belakang utama yang sedikit off-white untuk kesan lembut
+  <div className="bg-slate-50 min-h-screen p-4 sm:p-6 lg:p-8">
+    <div className="max-w-7xl mx-auto font-sans">
+      {/* Header: Tipografi lebih ringan dan warna lebih lembut */}
+      <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Manage Tasks</h1>
-          <p className="text-gray-600">Create, edit, and manage all tasks</p>
+          <h1 className="text-3xl font-medium text-slate-800">Manage Tasks</h1>
+          <p className="mt-2 text-slate-500">Create, edit, and manage all tasks.</p>
         </div>
         <Link
           href="/admin/tasks/create"
-          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700"
+          className="inline-flex items-center px-4 py-2 border border-slate-300 text-sm font-medium rounded-lg text-slate-700 bg-white hover:bg-slate-100 transition-colors"
         >
           <Plus className="w-4 h-4 mr-2" />
           Create Task
@@ -77,60 +83,62 @@ export default function ManageTasks() {
       </div>
 
       {tasks.length === 0 ? (
-        <div className="text-center py-12 bg-white rounded-lg shadow">
-          <CheckSquare className="w-12 h-12 mx-auto text-gray-400 mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No tasks yet</h3>
-          <p className="text-gray-500 mb-4">Get started by creating your first task</p>
+        // Empty State: Desain lebih bersih dengan border putus-putus
+        <div className="text-center py-16 border-2 border-dashed border-slate-200 rounded-xl">
+          <CheckSquare className="w-12 h-12 mx-auto text-slate-300 mb-4" />
+          <h3 className="text-lg font-medium text-slate-700 mb-2">No tasks yet</h3>
+          <p className="text-slate-500 mb-6">Get started by creating your first task.</p>
           <Link
             href="/admin/tasks/create"
-            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700"
+            className="inline-flex items-center px-4 py-2 border border-slate-300 text-sm font-medium rounded-lg text-slate-700 bg-white hover:bg-slate-100 transition-colors"
           >
             <Plus className="w-4 h-4 mr-2" />
             Create Your First Task
           </Link>
         </div>
       ) : (
-        <div className="bg-white shadow rounded-lg overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h3 className="text-lg font-medium text-gray-900">All Tasks ({tasks.length})</h3>
+        // Task List: Tanpa shadow, menggunakan border halus
+        <div className="bg-white border border-slate-200/70 rounded-xl overflow-hidden">
+          <div className="px-6 py-4 border-b border-slate-200/70">
+            <h3 className="text-lg font-medium text-slate-800">All Tasks ({tasks.length})</h3>
           </div>
-          <ul className="divide-y divide-gray-200">
+          <ul>
             {tasks.map((task) => (
-              <li key={task.id} className="px-6 py-4 hover:bg-gray-50">
+              <li key={task.id} className="px-6 py-5 border-b border-slate-100 last:border-b-0 hover:bg-slate-50/50 transition-colors">
                 <div className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center">
-                      <h4 className="text-lg font-medium text-gray-900">{task.title}</h4>
-                      <div className="ml-3 flex items-center text-sm text-green-600">
-                        <Star className="w-4 h-4 mr-1" />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-3">
+                      <h4 className="text-lg font-medium text-slate-800 truncate">{task.title}</h4>
+                      <div className="flex items-center text-sm font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
+                        <Star className="w-3 h-3 mr-1.5" />
                         {task.expReward} EXP
                       </div>
                     </div>
-                    <p className="text-gray-600 mt-1 line-clamp-2">{task.description}</p>
-                    <div className="text-sm text-gray-500 mt-2">
-                      Created on {new Date(task.createdAt).toLocaleDateString()}
+                    <p className="text-slate-600 mt-2 text-sm line-clamp-2">{task.description}</p>
+                    <div className="text-xs text-slate-400 mt-3">
+                      Created on {task.createdAt ? new Date(task.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A'}
                     </div>
                   </div>
-                  <div className="flex items-center space-x-2 ml-4">
+                  {/* Tombol Aksi: Desain lebih subtle tanpa border */}
+                  <div className="flex items-center space-x-1 ml-4">
                     <Link
                       href={`/admin/tasks/${task.id}`}
-                      className="inline-flex items-center px-3 py-1 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                      className="p-2 text-slate-500 hover:bg-slate-200/60 hover:text-slate-800 rounded-md transition-colors"
+                      title="Edit Task"
                     >
-                      <Edit className="w-4 h-4 mr-1" />
-                      Edit
+                      <Edit className="w-4 h-4" />
                     </Link>
-                    {/* 4. Hubungkan ke tombol delete */}
                     <button
                       onClick={() => handleDelete(task.id!)}
                       disabled={deletingId === task.id}
-                      className="inline-flex items-center px-3 py-1 border border-red-300 text-sm font-medium rounded-md text-red-700 bg-white hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="p-2 text-slate-500 hover:bg-rose-100 hover:text-rose-700 rounded-md transition-colors disabled:opacity-50"
+                      title="Delete Task"
                     >
                       {deletingId === task.id ? (
-                        <div className="w-4 h-4 border-2 border-red-200 border-t-red-600 rounded-full animate-spin"></div>
+                        <div className="w-4 h-4 border-2 border-slate-300 border-t-slate-600 rounded-full animate-spin"></div>
                       ) : (
                         <Trash2 className="w-4 h-4" />
                       )}
-                      <span className="ml-1">{deletingId === task.id ? 'Deleting...' : 'Delete'}</span>
                     </button>
                   </div>
                 </div>
@@ -140,5 +148,6 @@ export default function ManageTasks() {
         </div>
       )}
     </div>
-  );
+  </div>
+);
 }
