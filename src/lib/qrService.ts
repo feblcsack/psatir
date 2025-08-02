@@ -1,15 +1,16 @@
 // lib/qrService.ts
+
 import { db } from '@/lib/firebase';
-import { 
-  collection, 
-  doc, 
-  addDoc, 
-  getDoc, 
-  getDocs, 
-  query, 
-  where, 
-  orderBy, 
-  limit, 
+import {
+  collection,
+  doc,
+  addDoc,
+  getDoc,
+  getDocs,
+  query,
+  where,
+  orderBy,
+  limit,
   updateDoc,
   Timestamp,
   writeBatch
@@ -85,7 +86,7 @@ export const generateScheduledQR = async (
 
     const docRef = await addDoc(collection(db, 'qrSessions'), qrSession);
     console.log('QR Session created with ID:', docRef.id);
-    
+   
     return qrCodeData;
   } catch (error) {
     console.error('Error generating scheduled QR:', error);
@@ -153,7 +154,7 @@ export const getCurrentQRSession = async (userId: string): Promise<QRSession | n
 };
 
 /**
- * Validate QR and check-in user
+ * Validate QR and check-in user with proper XP handling
  */
 export const validateAndCheckIn = async (qrData: string, userId: string): Promise<void> => {
   try {
@@ -188,6 +189,18 @@ export const validateAndCheckIn = async (qrData: string, userId: string): Promis
       throw new Error('You have already checked in for this session');
     }
 
+    // Get user's current data
+    const userRef = doc(db, 'users', userId);
+    const userDoc = await getDoc(userRef);
+    
+    if (!userDoc.exists()) {
+      throw new Error('User not found');
+    }
+
+    const userData = userDoc.data();
+    const currentExp = userData.exp || userData.experience || 0;
+    const currentLevel = userData.level || 1;
+
     const batch = writeBatch(db);
 
     // Update session attendees
@@ -206,18 +219,21 @@ export const validateAndCheckIn = async (qrData: string, userId: string): Promis
     const checkInRef = doc(collection(db, 'checkInRecords'));
     batch.set(checkInRef, checkInRecord);
 
-    // Update user EXP
-    const userRef = doc(db, 'users', userId);
-    const userDoc = await getDoc(userRef);
-    if (userDoc.exists()) {
-      const currentExp = userDoc.data().experience || 0;
-      batch.update(userRef, {
-        experience: currentExp + session.expReward
-      });
-    }
+    // Calculate new XP and level
+    const newExp = currentExp + session.expReward;
+    const newLevel = Math.floor(newExp / 100) + 1; // Every 100 XP = 1 level
+
+    // Update user XP and level
+    batch.update(userRef, {
+      exp: newExp,
+      experience: newExp, // Keep both for compatibility
+      level: Math.max(currentLevel, newLevel),
+      lastCheckIn: now,
+      totalCheckIns: (userData.totalCheckIns || 0) + 1
+    });
 
     await batch.commit();
-    console.log('Check-in successful for user:', userId);
+    console.log(`Check-in successful for user: ${userId}, earned ${session.expReward} XP`);
   } catch (error) {
     console.error('Error during check-in:', error);
     throw error;
@@ -225,16 +241,33 @@ export const validateAndCheckIn = async (qrData: string, userId: string): Promis
 };
 
 /**
- * Get user's check-in status for current session
+ * Get user's check-in status for current/today's sessions
  */
 export const getUserCheckInStatus = async (userId: string): Promise<{
   hasCheckedIn: boolean;
   currentSession: QRSession | null;
   nextSession: QRSession | null;
+  todayCheckIns: number;
 }> => {
   try {
     const currentSession = await getCurrentQRSession(userId);
-    
+   
+    // Check if user has checked in today (any session today)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    const todayQuery = query(
+      collection(db, 'checkInRecords'),
+      where('userId', '==', userId),
+      where('checkedInAt', '>=', Timestamp.fromDate(today)),
+      where('checkedInAt', '<', Timestamp.fromDate(tomorrow))
+    );
+
+    const todaySnapshot = await getDocs(todayQuery);
+    const todayCheckIns = todaySnapshot.size;
+
     // Get next upcoming session
     const now = Timestamp.now();
     const nextQuery = query(
@@ -252,9 +285,10 @@ export const getUserCheckInStatus = async (userId: string): Promise<{
     } as QRSession;
 
     return {
-      hasCheckedIn: currentSession === null,
+      hasCheckedIn: todayCheckIns > 0, // User has checked in today if any check-in exists
       currentSession,
-      nextSession
+      nextSession,
+      todayCheckIns
     };
   } catch (error) {
     console.error('Error checking user status:', error);
@@ -263,19 +297,19 @@ export const getUserCheckInStatus = async (userId: string): Promise<{
 };
 
 /**
- * Apply penalties for users who didn't check-in
+ * Apply penalties for users who didn't check-in (improved logic)
  */
 export const applyPenalties = async (sessionId: string): Promise<void> => {
   try {
     const sessionRef = doc(db, 'qrSessions', sessionId);
     const sessionDoc = await getDoc(sessionRef);
-    
+   
     if (!sessionDoc.exists()) {
       throw new Error('Session not found');
     }
 
     const session = { id: sessionDoc.id, ...sessionDoc.data() } as QRSession;
-    
+   
     // Only apply penalties if session has ended
     const now = Timestamp.now();
     if (now.toMillis() <= session.endDateTime.toMillis()) {
@@ -292,28 +326,41 @@ export const applyPenalties = async (sessionId: string): Promise<void> => {
       );
 
       for (const userId of missedUsers) {
-        // Create penalty record
-        const penaltyRecord: Omit<PenaltyRecord, 'id'> = {
-          userId,
-          sessionId,
-          penaltyAppliedAt: now,
-          expLost: session.penaltyExp,
-          reason: `Missed mandatory check-in: ${session.title}`
-        };
-        const penaltyRef = doc(collection(db, 'penaltyRecords'));
-        batch.set(penaltyRef, penaltyRecord);
-
-        // Update user EXP
+        // Get user's current data
         const userRef = doc(db, 'users', userId);
         const userDoc = await getDoc(userRef);
+        
         if (userDoc.exists()) {
-          const currentExp = Math.max(0, (userDoc.data().experience || 0) - session.penaltyExp);
-          batch.update(userRef, {
-            experience: currentExp
-          });
-        }
+          const userData = userDoc.data();
+          const currentExp = userData.exp || userData.experience || 0;
+          const currentLevel = userData.level || 1;
 
-        penalizedUsers.push(userId);
+          // Calculate new XP (don't go below 0)
+          const newExp = Math.max(0, currentExp - session.penaltyExp);
+          const newLevel = Math.max(1, Math.floor(newExp / 100) + 1); // Minimum level 1
+
+          // Create penalty record
+          const penaltyRecord: Omit<PenaltyRecord, 'id'> = {
+            userId,
+            sessionId,
+            penaltyAppliedAt: now,
+            expLost: Math.min(currentExp, session.penaltyExp), // Actual XP lost
+            reason: `Missed mandatory check-in: ${session.title}`
+          };
+          const penaltyRef = doc(collection(db, 'penaltyRecords'));
+          batch.set(penaltyRef, penaltyRecord);
+
+          // Update user XP and level
+          batch.update(userRef, {
+            exp: newExp,
+            experience: newExp, // Keep both for compatibility
+            level: Math.min(currentLevel, newLevel), // Don't increase level from penalty
+            totalPenalties: (userData.totalPenalties || 0) + 1,
+            lastPenalty: now
+          });
+
+          penalizedUsers.push(userId);
+        }
       }
     }
 
@@ -323,7 +370,7 @@ export const applyPenalties = async (sessionId: string): Promise<void> => {
     });
 
     await batch.commit();
-    console.log('Penalties applied for session:', sessionId);
+    console.log(`Penalties applied for session: ${sessionId}, penalized ${penalizedUsers.length} users`);
   } catch (error) {
     console.error('Error applying penalties:', error);
     throw error;
@@ -378,13 +425,13 @@ export const getSessionStats = async (sessionId: string): Promise<{
   try {
     const sessionRef = doc(db, 'qrSessions', sessionId);
     const sessionDoc = await getDoc(sessionRef);
-    
+   
     if (!sessionDoc.exists()) {
       throw new Error('Session not found');
     }
 
     const session = { id: sessionDoc.id, ...sessionDoc.data() } as QRSession;
-    
+   
     const totalAttendees = session.attendees.length;
     const totalRequired = session.requiredUsers?.length || 0;
     const attendanceRate = totalRequired > 0 ? (totalAttendees / totalRequired) * 100 : 0;
@@ -398,6 +445,93 @@ export const getSessionStats = async (sessionId: string): Promise<{
     };
   } catch (error) {
     console.error('Error getting session stats:', error);
+    throw error;
+  }
+};
+
+/**
+ * Auto-apply penalties for ended sessions (to be called by cron job or scheduler)
+ */
+export const autoApplyPenaltiesForEndedSessions = async (): Promise<void> => {
+  try {
+    const now = Timestamp.now();
+    
+    // Get all sessions that have ended but penalties haven't been applied
+    const q = query(
+      collection(db, 'qrSessions'),
+      where('isActive', '==', true),
+      where('endDateTime', '<', now)
+    );
+
+    const querySnapshot = await getDocs(q);
+    
+    for (const doc of querySnapshot.docs) {
+      const session = { id: doc.id, ...doc.data() } as QRSession;
+      
+      // Only apply penalties if there are required users and not all have been penalized
+      if (session.requiredUsers && session.requiredUsers.length > 0) {
+        const missedUsers = session.requiredUsers.filter(
+          userId => !session.attendees.includes(userId) && !session.penalizedUsers.includes(userId)
+        );
+        
+        if (missedUsers.length > 0) {
+          await applyPenalties(session.id!);
+        }
+      }
+      
+      // Deactivate the session
+      await deactivateQRSession(session.id!);
+    }
+    
+    console.log('Auto-applied penalties for ended sessions');
+  } catch (error) {
+    console.error('Error auto-applying penalties:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get user's check-in history
+ */
+export const getUserCheckInHistory = async (userId: string, limitCount: number = 10): Promise<CheckInRecord[]> => {
+  try {
+    const q = query(
+      collection(db, 'checkInRecords'),
+      where('userId', '==', userId),
+      orderBy('checkedInAt', 'desc'),
+      limit(limitCount)
+    );
+
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    } as CheckInRecord));
+  } catch (error) {
+    console.error('Error fetching user check-in history:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get user's penalty history
+ */
+export const getUserPenaltyHistory = async (userId: string, limitCount: number = 10): Promise<PenaltyRecord[]> => {
+  try {
+    const q = query(
+      collection(db, 'penaltyRecords'),
+      where('userId', '==', userId),
+      orderBy('penaltyAppliedAt', 'desc'),
+      limit(limitCount)
+    );
+
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    } as PenaltyRecord));
+  } catch (error) {
+    console.error('Error fetching user penalty history:', error);
     throw error;
   }
 };
