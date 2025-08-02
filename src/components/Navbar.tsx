@@ -1,14 +1,26 @@
 'use client';
-
 import { useAuth } from '@/context/AuthContext';
 import { signOut } from '@/lib/auth';
-import { useRouter } from 'next/navigation';
-import { LogOut, User, Star } from 'lucide-react';
+import { useRouter, usePathname } from 'next/navigation';
+import { LogOut, User, Star, Menu, X, Home, CheckSquare, QrCode, Trophy, Clock } from 'lucide-react';
+import { useState } from 'react';
+import Link from 'next/link';
 import toast from 'react-hot-toast';
 
 export default function Navbar() {
   const { profile } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  const navigation = [
+    { name: 'Dashboard', href: '/user', icon: Home },
+    { name: 'Tasks', href: '/user/tasks', icon: CheckSquare },
+    { name: 'Check-in', href: '/user/checkin', icon: QrCode },
+    { name: 'Leaderboard', href: '/user/leaderboard', icon: Trophy },
+    { name: 'History', href: '/user/history', icon: Clock },
+    { name: 'Profile', href: '/user/profile', icon: User },
+  ];
 
   const handleSignOut = async () => {
     try {
@@ -23,46 +35,123 @@ export default function Navbar() {
   if (!profile) return null;
 
   return (
-    <nav className="bg-white shadow-lg border-b border-gray-200">
+    <nav className="bg-white border-b border-gray-200 sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
+          {/* Logo and Navigation */}
           <div className="flex items-center">
-            <h1 className="text-xl font-bold text-indigo-600">Psatir</h1>
-            <div className="ml-4 px-3 py-1 bg-indigo-100 text-indigo-800 rounded-full text-sm font-medium">
-              {profile.role === 'admin' ? 'Admin Panel' : 'User Dashboard'}
+            <h1 className="text-xl font-semibold text-gray-900">Psatir</h1>
+            
+            {/* Desktop Navigation */}
+            <div className="hidden md:ml-8 md:flex md:space-x-1">
+              {navigation.map((item) => {
+                const Icon = item.icon;
+                const isActive = pathname === item.href;
+                return (
+                  <Link
+                    key={item.name}
+                    href={item.href}
+                    className={`inline-flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                      isActive
+                        ? 'text-gray-900 bg-gray-100'
+                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                    }`}
+                  >
+                    <Icon className="w-4 h-4 mr-2" />
+                    {item.name}
+                  </Link>
+                );
+              })}
             </div>
           </div>
-          
+
+          {/* User Info and Actions */}
           <div className="flex items-center space-x-4">
-            {/* User info */}
-            <div className="flex items-center space-x-3">
-              <div className="flex items-center space-x-2">
-                <User className="w-5 h-5 text-gray-500" />
-                <span className="text-gray-700 font-medium">{profile.name}</span>
-              </div>
-              
-              <div className="flex items-center space-x-1 px-2 py-1 bg-yellow-100 rounded-full">
-                <Star className="w-4 h-4 text-yellow-600" />
-                <span className="text-yellow-800 text-sm font-medium">
-                  Level {profile.level}
-                </span>
-              </div>
-              
-              <div className="text-sm text-gray-600">
-                <span className="font-medium text-green-600">{profile.exp} EXP</span>
+            {/* User Stats */}
+            <div className="hidden sm:flex items-center space-x-3">
+              <div className="flex items-center space-x-2 px-3 py-1 bg-gray-50 rounded-full">
+                <span className="text-sm font-medium text-gray-700">{profile.name}</span>
+                <div className="flex items-center space-x-1">
+                  <Star className="w-3 h-3 text-gray-500" />
+                  <span className="text-xs text-gray-600">Lv.{profile.level}</span>
+                </div>
+                <span className="text-xs text-gray-500">{profile.exp} EXP</span>
               </div>
             </div>
 
-            {/* Logout button */}
+            {/* Mobile menu button */}
+            <button
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              className="md:hidden inline-flex items-center justify-center p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-gray-500"
+            >
+              {isMobileMenuOpen ? (
+                <X className="w-5 h-5" />
+              ) : (
+                <Menu className="w-5 h-5" />
+              )}
+            </button>
+
+            {/* Logout button - Desktop */}
             <button
               onClick={handleSignOut}
-              className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+              className="hidden md:inline-flex items-center px-3 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 focus:outline-none"
             >
-              <LogOut className="w-4 h-4 mr-2" />
+              <LogOut className="w-4 h-4 mr-1" />
               Logout
             </button>
           </div>
         </div>
+
+        {/* Mobile menu */}
+        {isMobileMenuOpen && (
+          <div className="md:hidden border-t border-gray-200">
+            <div className="px-2 pt-2 pb-3 space-y-1">
+              {/* User info on mobile */}
+              <div className="px-3 py-2 mb-2 bg-gray-50 rounded-md">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-gray-900">{profile.name}</span>
+                  <div className="flex items-center space-x-2">
+                    <div className="flex items-center space-x-1">
+                      <Star className="w-3 h-3 text-gray-500" />
+                      <span className="text-xs text-gray-600">Level {profile.level}</span>
+                    </div>
+                    <span className="text-xs text-gray-500">{profile.exp} EXP</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Navigation items */}
+              {navigation.map((item) => {
+                const Icon = item.icon;
+                const isActive = pathname === item.href;
+                return (
+                  <Link
+                    key={item.name}
+                    href={item.href}
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className={`flex items-center px-3 py-2 text-sm font-medium rounded-md ${
+                      isActive
+                        ? 'text-gray-900 bg-gray-100'
+                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                    }`}
+                  >
+                    <Icon className="w-4 h-4 mr-3" />
+                    {item.name}
+                  </Link>
+                );
+              })}
+
+              {/* Logout button - Mobile */}
+              <button
+                onClick={handleSignOut}
+                className="w-full flex items-center px-3 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-md"
+              >
+                <LogOut className="w-4 h-4 mr-3" />
+                Logout
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </nav>
   );

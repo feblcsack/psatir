@@ -1,118 +1,201 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { getTasks, Task } from '@/lib/tasks';
-import { Clock, Star, ChevronRight, CheckSquare } from 'lucide-react';
-import Link from 'next/link';
+import { useState, useEffect } from 'react';
+import { getTasks } from '@/lib/tasks';
+import { getUserCheckInStatus } from '@/lib/qrService';
+import { CheckSquare, Clock, QrCode, Star, Trophy, TrendingUp, Target } from 'lucide-react';
 
-export default function UserTasks() {
+export default function UserDashboard() {
   const { profile } = useAuth();
-  const [tasks, setTasks] = useState<Task[]>([]);
+  const [stats, setStats] = useState({
+    availableTasks: 0,
+    completedTasks: 0,
+    checkedInToday: false,
+    currentStreak: 0
+  });
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<'all' | 'easy' | 'medium' | 'hard'>('all');
 
   useEffect(() => {
-    const loadTasks = async () => {
+    const loadDashboardData = async () => {
+      if (!profile) return;
+      
       try {
-        const allTasks = await getTasks();
-        setTasks(allTasks);
+        const tasks = await getTasks();
+        const availableTasks = tasks.length;
+        const checkedIn = await getUserCheckInStatus(profile.uid);
+        
+        setStats({
+          availableTasks,
+          completedTasks: 0, // Anda mungkin perlu logika untuk ini
+          checkedInToday: checkedIn,
+          currentStreak: 0 // Anda mungkin perlu logika untuk ini
+        });
       } catch (error) {
-        console.error('Error loading tasks:', error);
+        console.error('Error loading dashboard data:', error);
       } finally {
         setLoading(false);
       }
     };
 
-    loadTasks();
-  }, []);
+    loadDashboardData();
+  }, [profile]);
 
-  if (loading) {
+  // Tampilan loading yang lebih sesuai dengan tema
+  if (!profile || loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+      <div className="bg-slate-50 flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-10 w-10 border-2 border-slate-300 border-t-blue-500"></div>
       </div>
     );
   }
 
-  const getDifficultyColor = (difficulty: string) => {
-    switch (difficulty) {
-      case 'easy': return 'bg-green-100 text-green-800';
-      case 'medium': return 'bg-yellow-100 text-yellow-800';
-      case 'hard': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
+  // Definisikan data kartu dengan warna yang lebih menarik dan sesuai tema
+  const statCards = [
+    {
+      title: 'Current Level',
+      value: profile.level,
+      subtitle: 'Keep it up!',
+      icon: Trophy,
+      color: 'text-amber-500' // Warna emas untuk piala
+    },
+    {
+      title: 'Experience Points',
+      value: profile.exp,
+      subtitle: 'Total EXP earned',
+      icon: Star,
+      color: 'text-indigo-500' // Warna yang lebih menarik
+    },
+    {
+      title: 'Available Tasks',
+      value: stats.availableTasks,
+      subtitle: 'Tasks to complete',
+      icon: CheckSquare,
+      color: 'text-blue-500' // Warna biru sebagai warna primer
+    },
+    {
+      title: 'Check-in Status',
+      value: stats.checkedInToday ? 'Complete' : 'Pending',
+      subtitle: 'Today\'s check-in',
+      icon: Clock,
+      // Warna tetap menggunakan status untuk kejelasan
+      color: stats.checkedInToday ? 'text-emerald-500' : 'text-orange-500'
     }
-  };
+  ];
 
+  const quickActions = [
+    {
+      title: 'View Tasks',
+      description: 'Browse available tasks',
+      href: '/user/tasks',
+      icon: CheckSquare,
+    },
+    {
+      title: 'Daily Check-in',
+      description: 'Complete your daily check-in',
+      href: '/user/checkin',
+      icon: QrCode,
+    },
+    {
+      title: 'Leaderboard',
+      description: 'See your ranking',
+      href: '/user/leaderboard',
+      icon: Trophy,
+    }
+  ];
+
+  const progressPercentage = (profile.exp % 100);
+  const expToNext = 100 - (profile.exp % 100);
+
+  // --- RENDER JSX DENGAN DESAIN BARU ---
   return (
-    <div>
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">Available Tasks</h1>
-        <p className="text-gray-600">Complete tasks to earn experience points and level up!</p>
-      </div>
-
-      {/* Filter buttons */}
-      <div className="mb-6">
-        <div className="flex space-x-2">
-          {['all', 'easy', 'medium', 'hard'].map((filterOption) => (
-            <button
-              key={filterOption}
-              onClick={() => setFilter(filterOption as any)}
-              className={`px-4 py-2 rounded-md text-sm font-medium ${
-                filter === filterOption
-                  ? 'bg-indigo-600 text-white'
-                  : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-              }`}
-            >
-              {filterOption.charAt(0).toUpperCase() + filterOption.slice(1)}
-            </button>
-          ))}
+    <div className="bg-slate-50 min-h-screen p-4 sm:p-6 lg:p-8">
+      <div className="max-w-7xl mx-auto space-y-8 font-sans">
+        {/* Welcome Section */}
+        <div className="text-left">
+          <h1 className="text-3xl font-medium text-slate-800">Welcome back, {profile.name}</h1>
+          <p className="mt-2 text-base text-slate-500">Here's your progress overview. Keep up the great work!</p>
         </div>
-      </div>
 
-      {/* Tasks grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {tasks.map((task) => (
-          <div key={task.id} className="bg-white shadow rounded-lg overflow-hidden hover:shadow-md transition-shadow">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-3">
-                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800`}>
-                  Task
-                </span>
-                <div className="flex items-center text-sm text-gray-500">
-                  <Star className="w-4 h-4 mr-1" />
-                  {task.expReward} EXP
+        {/* Stats Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          {statCards.map((card) => {
+            const Icon = card.icon;
+            return (
+              <div key={card.title} className="bg-white rounded-xl p-6 transition-all duration-300 hover:bg-slate-100/70 hover:scale-[1.02]">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-slate-500">{card.title}</p>
+                    <p className={`text-3xl font-semibold mt-2 ${card.color}`}>{card.value}</p>
+                    <p className="text-xs text-slate-400 mt-2">{card.subtitle}</p>
+                  </div>
+                  <Icon className="w-7 h-7 text-slate-400" strokeWidth={1.5} />
                 </div>
               </div>
-              
-              <h3 className="text-lg font-medium text-gray-900 mb-2">{task.title}</h3>
-              <p className="text-gray-600 text-sm mb-4 line-clamp-3">{task.description}</p>
-              
-              <div className="flex items-center justify-between">
-                <div className="flex items-center text-sm text-gray-500">
-                  <Clock className="w-4 h-4 mr-1" />
-                  {new Date(task.createdAt).toLocaleDateString()}
-                </div>
-                <Link
-                  href={`/user/tasks/${task.id}`}
-                  className="inline-flex items-center text-indigo-600 hover:text-indigo-500 text-sm font-medium"
-                >
-                  View Details
-                  <ChevronRight className="w-4 h-4 ml-1" />
-                </Link>
+            );
+          })}
+        </div>
+
+        {/* Progress & Quick Actions Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+          
+          {/* Progress Section */}
+          <div className="bg-white rounded-xl p-6 lg:col-span-2">
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="text-lg font-medium text-slate-800">Level Progress</h3>
+              <div className="flex items-center space-x-2">
+                <TrendingUp className="w-5 h-5 text-emerald-500" strokeWidth={2} />
+                <span className="text-sm font-medium text-slate-600">{expToNext} EXP to next level</span>
+              </div>
+            </div>
+            <div className="space-y-3">
+              <div className="flex justify-between text-sm">
+                <span className="font-medium text-slate-500">Level {profile.level}</span>
+                <span className="font-medium text-slate-500">Level {profile.level + 1}</span>
+              </div>
+              <div className="w-full bg-slate-200 rounded-full h-2.5">
+                <div 
+                  className="bg-blue-500 h-2.5 rounded-full transition-all duration-700 ease-out" 
+                  style={{ width: `${progressPercentage}%` }}
+                ></div>
+              </div>
+              <div className="flex justify-center pt-1">
+                <span className="text-sm font-medium text-slate-500">
+                  {profile.exp % 100}/100 EXP
+                </span>
               </div>
             </div>
           </div>
-        ))}
-      </div>
 
-      {tasks.length === 0 && (
-        <div className="text-center py-12">
-          <CheckSquare className="w-12 h-12 mx-auto text-gray-400 mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No tasks available</h3>
-          <p className="text-gray-500">Check back later for new tasks!</p>
+          {/* Quick Actions */}
+          <div className="bg-white rounded-xl p-6">
+            <div className="flex items-center mb-5">
+              <Target className="w-5 h-5 text-slate-700 mr-3" strokeWidth={2} />
+              <h3 className="text-lg font-medium text-slate-800">Quick Actions</h3>
+            </div>
+            <div className="space-y-4">
+              {quickActions.map((action) => {
+                const Icon = action.icon;
+                return (
+                  <button 
+                    key={action.title}
+                    onClick={() => window.location.href = action.href}
+                    className="group w-full p-4 bg-slate-100/70 rounded-lg hover:bg-slate-200/60 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-75 transition-all text-left"
+                  >
+                    <div className="flex items-start space-x-4">
+                      <Icon className="w-6 h-6 text-slate-500 group-hover:text-blue-500 transition-colors duration-300 mt-0.5" strokeWidth={1.5} />
+                      <div>
+                        <p className="font-semibold text-red-700">{action.title}</p>
+                        <p className="text-sm text-slate-500 mt-1">{action.description}</p>
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }

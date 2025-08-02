@@ -42,8 +42,6 @@ export default function AdminLayout({
     { name: 'Manage Tasks', href: '/admin/tasks', icon: CheckSquare },
     { name: 'Submissions', href: '/admin/submissions', icon: FileText },
     { name: 'Generate QR', href: '/admin/qr', icon: QrCode },
-    { name: 'Users', href: '/admin/users', icon: Users },
-    { name: 'Analytics', href: '/admin/analytics', icon: BarChart3 },
   ];
 
   return (
