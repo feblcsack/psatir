@@ -285,7 +285,7 @@ export const getUserCheckInStatus = async (userId: string): Promise<{
     } as QRSession;
 
     return {
-      hasCheckedIn: todayCheckIns > 0, // User has checked in today if any check-in exists
+      hasCheckedIn: false, // UBAH: Selalu false agar bisa check-in multiple kali
       currentSession,
       nextSession,
       todayCheckIns

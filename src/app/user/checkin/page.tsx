@@ -39,7 +39,15 @@ export default function CheckIn() {
     
     try {
       const status = await getUserCheckInStatus(profile.uid);
-      setHasCheckedIn(status.hasCheckedIn);
+      
+      // UBAH: Cek apakah user sudah check-in untuk session SAAT INI
+      if (status.currentSession) {
+        const hasCheckedInThisSession = status.currentSession.attendees.includes(profile.uid);
+        setHasCheckedIn(hasCheckedInThisSession); // Hanya set true jika sudah check-in di session ini
+      } else {
+        setHasCheckedIn(false); // Tidak ada session aktif = belum check-in
+      }
+      
       setCurrentSession(status.currentSession);
       setNextSession(status.nextSession);
     } catch (error) {
@@ -167,17 +175,18 @@ export default function CheckIn() {
   }, [scanner]);
 
   const startScanning = () => {
-    // Double-check we have an active session and user hasn't checked in
+    // Double-check we have an active session
     if (!currentSession) {
       toast.error('No active check-in session available');
       return;
     }
     
-    if (hasCheckedIn) {
-      toast.error('You have already checked in for today');
+    // UBAH: Cek apakah user sudah check-in untuk session INI (bukan hari ini)
+    if (currentSession.attendees.includes(profile?.uid || '')) {
+      toast.error('You have already checked in for this session');
       return;
     }
-
+  
     // Check if session is still active
     const now = new Date();
     const sessionEnd = currentSession.endDateTime.toDate();
@@ -187,7 +196,7 @@ export default function CheckIn() {
       loadCheckInStatus(); // Refresh status
       return;
     }
-
+  
     setScanning(true);
   };
 
@@ -323,7 +332,7 @@ export default function CheckIn() {
             </div>
           </div>
         </div>
-      ) : hasCheckedIn ? (
+      )  : hasCheckedIn ? (
         // User has already checked in
         <div className="bg-green-50 border border-green-200 rounded-2xl p-8 text-center mb-6">
           <CheckCircle className="w-20 h-20 mx-auto text-green-500 mb-4" />
