@@ -33,26 +33,30 @@ export default function CheckIn() {
   const [scanner, setScanner] = useState<Html5QrcodeScanner | null>(null);
   const [timeRemaining, setTimeRemaining] = useState<string>('');
 
+  // Function to load and refresh status
+  const loadCheckInStatus = async () => {
+    if (!profile) return;
+    
+    try {
+      const status = await getUserCheckInStatus(profile.uid);
+      setHasCheckedIn(status.hasCheckedIn);
+      setCurrentSession(status.currentSession);
+      setNextSession(status.nextSession);
+    } catch (error) {
+      console.error('Error checking status:', error);
+    }
+  };
+
   useEffect(() => {
     const checkStatus = async () => {
-      if (!profile) return;
-      
-      try {
-        const status = await getUserCheckInStatus(profile.uid);
-        setHasCheckedIn(status.hasCheckedIn);
-        setCurrentSession(status.currentSession);
-        setNextSession(status.nextSession);
-      } catch (error) {
-        console.error('Error checking status:', error);
-      } finally {
-        setLoading(false);
-      }
+      await loadCheckInStatus();
+      setLoading(false);
     };
 
     checkStatus();
     
     // Refresh status every 30 seconds
-    const interval = setInterval(checkStatus, 30000);
+    const interval = setInterval(loadCheckInStatus, 30000);
     return () => clearInterval(interval);
   }, [profile]);
 
@@ -67,7 +71,8 @@ export default function CheckIn() {
 
       if (diff <= 0) {
         setTimeRemaining('Session ended');
-        setCurrentSession(null);
+        // Refresh status when session ends
+        loadCheckInStatus();
         return;
       }
 
@@ -102,23 +107,46 @@ export default function CheckIn() {
 
         qrScanner.render(
           async (decodedText) => {
-            if (!profile) return;
+            if (!profile || !currentSession) return;
             
             try {
+              // Validate that we're within session time
+              const now = new Date();
+              const sessionStart = currentSession.startDateTime.toDate();
+              const sessionEnd = currentSession.endDateTime.toDate();
+              
+              if (now < sessionStart) {
+                toast.error('Check-in session has not started yet!');
+                return;
+              }
+              
+              if (now > sessionEnd) {
+                toast.error('Check-in session has ended!');
+                // Refresh status
+                await loadCheckInStatus();
+                return;
+              }
+
+              // Perform check-in
               await validateAndCheckIn(decodedText, profile.uid);
+              
+              // Update local state immediately
               setHasCheckedIn(true);
               setCurrentSession(null);
-              toast.success(`Check-in successful! +${currentSession?.expReward || 10} EXP earned!`);
+              
+              toast.success(`Check-in successful! +${currentSession.expReward || 10} EXP earned!`);
               qrScanner.clear();
               setScanning(false);
-              // Refresh status
-              window.location.reload();
+              
+              // Refresh status from server to get updated data
+              await loadCheckInStatus();
+              
             } catch (error: any) {
-              toast.error(error.message || 'Invalid QR code');
+              toast.error(error.message || 'Invalid QR code or check-in failed');
             }
           },
           (error) => {
-            // Handle scan error silently
+            // Handle scan error silently - no need to spam console
           }
         );
 
@@ -139,6 +167,27 @@ export default function CheckIn() {
   }, [scanner]);
 
   const startScanning = () => {
+    // Double-check we have an active session and user hasn't checked in
+    if (!currentSession) {
+      toast.error('No active check-in session available');
+      return;
+    }
+    
+    if (hasCheckedIn) {
+      toast.error('You have already checked in for today');
+      return;
+    }
+
+    // Check if session is still active
+    const now = new Date();
+    const sessionEnd = currentSession.endDateTime.toDate();
+    
+    if (now > sessionEnd) {
+      toast.error('Check-in session has ended');
+      loadCheckInStatus(); // Refresh status
+      return;
+    }
+
     setScanning(true);
   };
 
@@ -165,6 +214,14 @@ export default function CheckIn() {
     };
   };
 
+  const isSessionActive = () => {
+    if (!currentSession) return false;
+    const now = new Date();
+    const sessionStart = currentSession.startDateTime.toDate();
+    const sessionEnd = currentSession.endDateTime.toDate();
+    return now >= sessionStart && now <= sessionEnd;
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -180,8 +237,8 @@ export default function CheckIn() {
         <p className="text-gray-600">Scan QR codes during scheduled sessions to earn EXP!</p>
       </div>
 
-      {/* Current Session Card */}
-      {currentSession && !hasCheckedIn ? (
+      {/* Current Session Card - Only show if session exists and user hasn't checked in */}
+      {currentSession && !hasCheckedIn && isSessionActive() ? (
         <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden mb-6">
           <div className="bg-gradient-to-r from-indigo-500 to-purple-600 px-6 py-4">
             <div className="flex items-center justify-between text-white">
@@ -269,6 +326,7 @@ export default function CheckIn() {
           </div>
         </div>
       ) : hasCheckedIn ? (
+        // User has already checked in
         <div className="bg-green-50 border border-green-200 rounded-2xl p-8 text-center mb-6">
           <CheckCircle className="w-20 h-20 mx-auto text-green-500 mb-4" />
           <h3 className="text-2xl font-semibold text-green-900 mb-2">Successfully Checked In!</h3>
@@ -280,7 +338,20 @@ export default function CheckIn() {
             EXP earned today
           </div>
         </div>
+      ) : currentSession && !isSessionActive() ? (
+        // Session exists but not active (either not started or ended)
+        <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-8 text-center mb-6">
+          <Clock className="w-20 h-20 mx-auto text-yellow-400 mb-4" />
+          <h3 className="text-2xl font-semibold text-yellow-900 mb-2">Session Not Active</h3>
+          <p className="text-yellow-700">
+            {new Date() < currentSession.startDateTime.toDate() 
+              ? `Check-in session starts at ${formatDateTime(currentSession.startDateTime.toDate()).time}`
+              : 'Check-in session has ended'
+            }
+          </p>
+        </div>
       ) : (
+        // No active session
         <div className="bg-gray-50 border border-gray-200 rounded-2xl p-8 text-center mb-6">
           <Clock className="w-20 h-20 mx-auto text-gray-400 mb-4" />
           <h3 className="text-2xl font-semibold text-gray-900 mb-2">No Active Session</h3>

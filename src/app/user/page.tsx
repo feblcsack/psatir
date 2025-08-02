@@ -11,7 +11,7 @@ export default function UserDashboard() {
   const [stats, setStats] = useState({
     availableTasks: 0,
     completedTasks: 0,
-    checkedInToday: false,
+    checkedInToday: true,
     currentStreak: 0
   });
   const [loading, setLoading] = useState(true);
@@ -25,23 +25,35 @@ export default function UserDashboard() {
         const tasks = await getTasks();
         const availableTasks = tasks.length;
         
-        // Check if user checked in today
-        const checkedIn = await getUserCheckInStatus(profile.uid);
+        // Check if user checked in today - FIX: properly get actual status
+        const checkInStatus = await getUserCheckInStatus(profile.uid);
+        const checkedInToday = checkInStatus.hasCheckedIn;
         
         setStats({
           availableTasks,
           completedTasks: 0,
-          checkedInToday: false,
+          checkedInToday, // Use actual status instead of hardcoded false
           currentStreak: 0
         });
       } catch (error) {
         console.error('Error loading dashboard data:', error);
+        // Set default values on error
+        setStats({
+          availableTasks: 0,
+          completedTasks: 0,
+          checkedInToday: false,
+          currentStreak: 0
+        });
       } finally {
         setLoading(false);
       }
     };
 
     loadDashboardData();
+    
+    // Refresh dashboard data every minute to keep status updated
+    const interval = setInterval(loadDashboardData, 60000);
+    return () => clearInterval(interval);
   }, [profile]);
 
   if (!profile || loading) {
