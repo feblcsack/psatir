@@ -45,7 +45,7 @@ export default function GenerateQR() {
     endTime: '',
     expReward: 10,
     penaltyExp: 5,
-    requiredUsers: ''
+    allUsers: ''
   });
 
   useEffect(() => {
@@ -85,11 +85,16 @@ export default function GenerateQR() {
         return;
       }
 
-      // Parse required users (comma-separated email list)
-      const requiredUsers = formData.requiredUsers
+      // Parse all users (comma-separated email/ID list)
+      const allUsers = formData.allUsers
         .split(',')
-        .map(email => email.trim())
-        .filter(email => email.length > 0);
+        .map(id => id.trim())
+        .filter(id => id.length > 0);
+
+      if (allUsers.length === 0) {
+        toast.error('Please provide at least one user ID/email');
+        return;
+      }
 
       await generateScheduledQR(
         formData.title,
@@ -99,7 +104,7 @@ export default function GenerateQR() {
         formData.expReward,
         formData.penaltyExp,
         profile.uid,
-        requiredUsers.length > 0 ? requiredUsers : undefined
+        allUsers
       );
 
       toast.success('QR Session created successfully!');
@@ -113,7 +118,7 @@ export default function GenerateQR() {
         endTime: '',
         expReward: 10,
         penaltyExp: 5,
-        requiredUsers: ''
+        allUsers: ''
       });
       loadSessions();
     } catch (error) {
@@ -342,17 +347,18 @@ export default function GenerateQR() {
 
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Required Users (Optional)
+                    All Users *
                   </label>
                   <textarea
-                    value={formData.requiredUsers}
-                    onChange={(e) => setFormData({...formData, requiredUsers: e.target.value})}
+                    required
+                    value={formData.allUsers}
+                    onChange={(e) => setFormData({...formData, allUsers: e.target.value})}
                     rows={3}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    placeholder="Enter user IDs or emails separated by commas (optional). If empty, no penalties will be applied."
+                    placeholder="Enter user IDs or emails separated by commas. All listed users will get penalties if they don't check-in."
                   />
                   <p className="text-sm text-gray-500 mt-1">
-                    Only these users will get penalties if they don't check-in. Leave empty for voluntary check-ins.
+                    All users who should participate in this session. Those who don't check-in will receive penalties.
                   </p>
                 </div>
               </div>
@@ -423,7 +429,7 @@ export default function GenerateQR() {
                     </div>
                     <div className="flex items-center text-gray-600">
                       <Users className="w-4 h-4 mr-1" />
-                      {session.attendees.length} attended
+                      {session.attendees.length}/{session.allUsers.length}
                     </div>
                     <div className="flex items-center text-gray-600">
                       <Award className="w-4 h-4 mr-1" />
@@ -433,13 +439,11 @@ export default function GenerateQR() {
 
                   <div className="flex justify-between items-center mt-4 pt-4 border-t border-gray-100">
                     <div className="flex items-center space-x-2">
-                      {session.requiredUsers && session.requiredUsers.length > 0 && (
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-yellow-100 text-yellow-800">
-                          <AlertTriangle className="w-3 h-3 mr-1" />
-                          Mandatory
-                        </span>
-                      )}
-                      {status.status === 'ended' && session.requiredUsers && session.requiredUsers.length > 0 && (
+                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-red-100 text-red-800">
+                        <AlertTriangle className="w-3 h-3 mr-1" />
+                        Penalties Apply
+                      </span>
+                      {status.status === 'ended' && session.allUsers && session.allUsers.length > 0 && (
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
@@ -552,24 +556,20 @@ export default function GenerateQR() {
                         <span className="text-gray-600">Attendees:</span>
                         <span className="text-gray-900 font-medium">{selectedSession.attendees.length}</span>
                       </div>
-                      {selectedSession.requiredUsers && selectedSession.requiredUsers.length > 0 && (
-                        <>
-                          <div className="flex justify-between">
-                            <span className="text-gray-600">Required:</span>
-                            <span className="text-gray-900 font-medium">{selectedSession.requiredUsers.length}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-gray-600">Attendance:</span>
-                            <span className="text-gray-900 font-medium">
-                              {((selectedSession.attendees.length / selectedSession.requiredUsers.length) * 100).toFixed(1)}%
-                            </span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-gray-600">Penalized:</span>
-                            <span className="text-red-600 font-medium">{selectedSession.penalizedUsers.length}</span>
-                          </div>
-                        </>
-                      )}
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Total Users:</span>
+                        <span className="text-gray-900 font-medium">{selectedSession.allUsers.length}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Attendance:</span>
+                        <span className="text-gray-900 font-medium">
+                          {selectedSession.allUsers.length > 0 ? ((selectedSession.attendees.length / selectedSession.allUsers.length) * 100).toFixed(1) : 0}%
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Penalized:</span>
+                        <span className="text-red-600 font-medium">{selectedSession.penalizedUsers.length}</span>
+                      </div>
                     </div>
                   </div>
 
@@ -587,19 +587,19 @@ export default function GenerateQR() {
                       <h4 className="text-sm font-medium text-gray-900 mb-2">Attendees</h4>
                       <div className="bg-gray-50 rounded-lg p-3 max-h-32 overflow-y-auto">
                         {selectedSession.attendees.map((userId, index) => (
-                          <div key={index} className="text-xs text-gray-600 font-mono truncate">
-                            {userId}
+                          <div key={index} className="text-xs text-green-600 font-mono truncate">
+                            {userId} ✓
                           </div>
                         ))}
                       </div>
                     </div>
                   )}
 
-                  {selectedSession.requiredUsers && selectedSession.requiredUsers.length > 0 && (
+                  {selectedSession.allUsers && selectedSession.allUsers.length > 0 && (
                     <div>
-                      <h4 className="text-sm font-medium text-gray-900 mb-2">Required Users</h4>
+                      <h4 className="text-sm font-medium text-gray-900 mb-2">All Users</h4>
                       <div className="bg-gray-50 rounded-lg p-3 max-h-32 overflow-y-auto">
-                        {selectedSession.requiredUsers.map((userId, index) => (
+                        {selectedSession.allUsers.map((userId, index) => (
                           <div key={index} className={`text-xs font-mono truncate ${
                             selectedSession.attendees.includes(userId) 
                               ? 'text-green-600' 
@@ -636,7 +636,7 @@ export default function GenerateQR() {
             <ul className="space-y-1 text-sm">
               <li>• Set specific date and time ranges</li>
               <li>• Configure EXP rewards and penalties</li>
-              <li>• Add required users for mandatory check-ins</li>
+              <li>• Add all users who should participate</li>
               <li>• Sessions are automatically activated</li>
             </ul>
           </div>
@@ -644,7 +644,7 @@ export default function GenerateQR() {
             <h5 className="font-medium mb-2">Managing Sessions:</h5>
             <ul className="space-y-1 text-sm">
               <li>• Users can only check-in during active hours</li>
-              <li>• Apply penalties after session ends</li>
+              <li>• Apply penalties after session ends to missed users</li>
               <li>• Download QR codes for display</li>
               <li>• View real-time attendance statistics</li>
             </ul>

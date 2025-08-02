@@ -28,9 +28,9 @@ export interface QRSession {
   isActive: boolean;
   expReward: number;
   penaltyExp: number;
-  requiredUsers?: string[]; // Optional: specific users who must check-in
   attendees: string[]; // Users who checked in
   penalizedUsers: string[]; // Users who got penalty
+  allUsers: string[]; // All users who should participate
 }
 
 export interface CheckInRecord {
@@ -61,7 +61,7 @@ export const generateScheduledQR = async (
   expReward: number,
   penaltyExp: number,
   generatedBy: string,
-  requiredUsers?: string[]
+  allUsers: string[] // All users who should participate
 ): Promise<string> => {
   try {
     // Create unique QR data
@@ -79,7 +79,7 @@ export const generateScheduledQR = async (
       isActive: true,
       expReward,
       penaltyExp,
-      requiredUsers: requiredUsers || [],
+      allUsers,
       attendees: [],
       penalizedUsers: []
     };
@@ -297,7 +297,7 @@ export const getUserCheckInStatus = async (userId: string): Promise<{
 };
 
 /**
- * Apply penalties for users who didn't check-in (improved logic)
+ * Apply penalties for users who didn't check-in
  */
 export const applyPenalties = async (sessionId: string): Promise<void> => {
   try {
@@ -319,48 +319,46 @@ export const applyPenalties = async (sessionId: string): Promise<void> => {
     const batch = writeBatch(db);
     const penalizedUsers: string[] = [];
 
-    // If specific users are required, penalize those who didn't check-in
-    if (session.requiredUsers && session.requiredUsers.length > 0) {
-      const missedUsers = session.requiredUsers.filter(
-        userId => !session.attendees.includes(userId) && !session.penalizedUsers.includes(userId)
-      );
+    // Apply penalties to all users who didn't check-in (excluding those already penalized)
+    const missedUsers = session.allUsers.filter(
+      userId => !session.attendees.includes(userId) && !session.penalizedUsers.includes(userId)
+    );
 
-      for (const userId of missedUsers) {
-        // Get user's current data
-        const userRef = doc(db, 'users', userId);
-        const userDoc = await getDoc(userRef);
-        
-        if (userDoc.exists()) {
-          const userData = userDoc.data();
-          const currentExp = userData.exp || userData.experience || 0;
-          const currentLevel = userData.level || 1;
+    for (const userId of missedUsers) {
+      // Get user's current data
+      const userRef = doc(db, 'users', userId);
+      const userDoc = await getDoc(userRef);
+      
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        const currentExp = userData.exp || userData.experience || 0;
+        const currentLevel = userData.level || 1;
 
-          // Calculate new XP (don't go below 0)
-          const newExp = Math.max(0, currentExp - session.penaltyExp);
-          const newLevel = Math.max(1, Math.floor(newExp / 100) + 1); // Minimum level 1
+        // Calculate new XP (don't go below 0)
+        const newExp = Math.max(0, currentExp - session.penaltyExp);
+        const newLevel = Math.max(1, Math.floor(newExp / 100) + 1); // Minimum level 1
 
-          // Create penalty record
-          const penaltyRecord: Omit<PenaltyRecord, 'id'> = {
-            userId,
-            sessionId,
-            penaltyAppliedAt: now,
-            expLost: Math.min(currentExp, session.penaltyExp), // Actual XP lost
-            reason: `Missed mandatory check-in: ${session.title}`
-          };
-          const penaltyRef = doc(collection(db, 'penaltyRecords'));
-          batch.set(penaltyRef, penaltyRecord);
+        // Create penalty record
+        const penaltyRecord: Omit<PenaltyRecord, 'id'> = {
+          userId,
+          sessionId,
+          penaltyAppliedAt: now,
+          expLost: Math.min(currentExp, session.penaltyExp), // Actual XP lost
+          reason: `Missed check-in: ${session.title}`
+        };
+        const penaltyRef = doc(collection(db, 'penaltyRecords'));
+        batch.set(penaltyRef, penaltyRecord);
 
-          // Update user XP and level
-          batch.update(userRef, {
-            exp: newExp,
-            experience: newExp, // Keep both for compatibility
-            level: Math.min(currentLevel, newLevel), // Don't increase level from penalty
-            totalPenalties: (userData.totalPenalties || 0) + 1,
-            lastPenalty: now
-          });
+        // Update user XP and level
+        batch.update(userRef, {
+          exp: newExp,
+          experience: newExp, // Keep both for compatibility
+          level: Math.min(currentLevel, newLevel), // Don't increase level from penalty
+          totalPenalties: (userData.totalPenalties || 0) + 1,
+          lastPenalty: now
+        });
 
-          penalizedUsers.push(userId);
-        }
+        penalizedUsers.push(userId);
       }
     }
 
@@ -418,7 +416,7 @@ export const deactivateQRSession = async (sessionId: string): Promise<void> => {
  */
 export const getSessionStats = async (sessionId: string): Promise<{
   totalAttendees: number;
-  totalRequired: number;
+  totalUsers: number;
   attendanceRate: number;
   penaltiesApplied: number;
 }> => {
@@ -433,13 +431,13 @@ export const getSessionStats = async (sessionId: string): Promise<{
     const session = { id: sessionDoc.id, ...sessionDoc.data() } as QRSession;
    
     const totalAttendees = session.attendees.length;
-    const totalRequired = session.requiredUsers?.length || 0;
-    const attendanceRate = totalRequired > 0 ? (totalAttendees / totalRequired) * 100 : 0;
+    const totalUsers = session.allUsers.length;
+    const attendanceRate = totalUsers > 0 ? (totalAttendees / totalUsers) * 100 : 0;
     const penaltiesApplied = session.penalizedUsers.length;
 
     return {
       totalAttendees,
-      totalRequired,
+      totalUsers,
       attendanceRate,
       penaltiesApplied
     };
@@ -468,9 +466,9 @@ export const autoApplyPenaltiesForEndedSessions = async (): Promise<void> => {
     for (const doc of querySnapshot.docs) {
       const session = { id: doc.id, ...doc.data() } as QRSession;
       
-      // Only apply penalties if there are required users and not all have been penalized
-      if (session.requiredUsers && session.requiredUsers.length > 0) {
-        const missedUsers = session.requiredUsers.filter(
+      // Apply penalties if there are users and not all have been penalized
+      if (session.allUsers && session.allUsers.length > 0) {
+        const missedUsers = session.allUsers.filter(
           userId => !session.attendees.includes(userId) && !session.penalizedUsers.includes(userId)
         );
         

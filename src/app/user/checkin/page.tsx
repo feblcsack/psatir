@@ -310,19 +310,17 @@ export default function CheckIn() {
               </div>
             )}
 
-            {currentSession.requiredUsers && currentSession.requiredUsers.includes(profile?.uid || '') && (
-              <div className="mt-4 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                <div className="flex items-center">
-                  <AlertTriangle className="w-5 h-5 text-yellow-600 mr-3" />
-                  <div>
-                    <p className="text-yellow-800 font-medium">Mandatory Check-in</p>
-                    <p className="text-yellow-700 text-sm">
-                      You will lose {currentSession.penaltyExp} EXP if you don't check-in before the session ends.
-                    </p>
-                  </div>
+            <div className="mt-4 bg-red-50 border border-red-200 rounded-lg p-4">
+              <div className="flex items-center">
+                <AlertTriangle className="w-5 h-5 text-red-600 mr-3" />
+                <div>
+                  <p className="text-red-800 font-medium">Penalty Warning</p>
+                  <p className="text-red-700 text-sm">
+                    You will lose {currentSession.penaltyExp} EXP if you don't check-in before the session ends.
+                  </p>
                 </div>
               </div>
-            )}
+            </div>
           </div>
         </div>
       ) : hasCheckedIn ? (
@@ -394,21 +392,17 @@ export default function CheckIn() {
                 <Award className="w-4 h-4 mr-2" />
                 <div>
                   <div className="font-medium">+{nextSession.expReward} EXP reward</div>
-                  {nextSession.requiredUsers && nextSession.requiredUsers.includes(profile?.uid || '') && (
-                    <div className="text-xs text-red-500">-{nextSession.penaltyExp} EXP penalty if missed</div>
-                  )}
+                  <div className="text-xs text-red-500">-{nextSession.penaltyExp} EXP penalty if missed</div>
                 </div>
               </div>
             </div>
 
-            {nextSession.requiredUsers && nextSession.requiredUsers.includes(profile?.uid || '') && (
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-                <div className="flex items-center text-yellow-800">
-                  <AlertTriangle className="w-4 h-4 mr-2" />
-                  <span className="text-sm font-medium">Mandatory attendance required</span>
-                </div>
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+              <div className="flex items-center text-yellow-800">
+                <AlertTriangle className="w-4 h-4 mr-2" />
+                <span className="text-sm font-medium">Check-in required - penalty applies if missed</span>
               </div>
-            )}
+            </div>
           </div>
         </div>
       )}
@@ -441,7 +435,7 @@ export default function CheckIn() {
             </div>
             <h4 className="font-medium text-gray-900 mb-2">Penalties</h4>
             <p className="text-sm text-gray-600">
-              Lose EXP for missing mandatory check-in sessions
+              Lose EXP for missing check-in sessions
             </p>
           </div>
         </div>
