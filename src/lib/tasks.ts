@@ -73,23 +73,27 @@ import {
   export const getTaskSubmissions = async (taskId?: string): Promise<TaskSubmission[]> => {
     try {
       let submissions: TaskSubmission[] = [];
-      
+  
       if (taskId) {
-        // Get submissions for specific task
         const q = query(
-          collection(db, 'tasks', taskId, 'submissions'), 
+          collection(db, 'tasks', taskId, 'submissions'),
           orderBy('submittedAt', 'desc')
         );
         const querySnapshot = await getDocs(q);
-        submissions = querySnapshot.docs.map(doc => ({
-          id: doc.id,
-          taskId,
-          ...doc.data()
-        } as TaskSubmission));
+  
+        submissions = querySnapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            taskId,
+            ...data,
+            submittedAt: data.submittedAt.toDate(), // ✅ convert di sini
+            reviewedAt: data.reviewedAt?.toDate?.() ?? undefined, // optional
+          } as TaskSubmission;
+        });
       } else {
-        // Get all submissions from all tasks
         const tasksSnapshot = await getDocs(collection(db, 'tasks'));
-        
+  
         for (const taskDoc of tasksSnapshot.docs) {
           const submissionsSnapshot = await getDocs(
             query(
@@ -97,26 +101,31 @@ import {
               orderBy('submittedAt', 'desc')
             )
           );
-          
-          const taskSubmissions = submissionsSnapshot.docs.map(doc => ({
-            id: doc.id,
-            taskId: taskDoc.id,
-            ...doc.data()
-          } as TaskSubmission));
-          
+  
+          const taskSubmissions = submissionsSnapshot.docs.map(doc => {
+            const data = doc.data();
+            return {
+              id: doc.id,
+              taskId: taskDoc.id,
+              ...data,
+              submittedAt: data.submittedAt.toDate(), // ✅ convert ke Date
+              reviewedAt: data.reviewedAt?.toDate?.() ?? undefined,
+            } as TaskSubmission;
+          });
+  
           submissions.push(...taskSubmissions);
         }
-        
-        // Sort all submissions by submitted date
+  
         submissions.sort((a, b) => b.submittedAt.getTime() - a.submittedAt.getTime());
       }
-      
+  
       return submissions;
     } catch (error) {
       console.error('Error getting submissions:', error);
       return [];
     }
   };
+  
   
   export const reviewSubmission = async (
     taskId: string, 
