@@ -45,7 +45,7 @@ export default function GenerateQR() {
     endTime: '',
     expReward: 10,
     penaltyExp: 5,
-    allUsers: ''
+    requiredUsers: ''
   });
 
   useEffect(() => {
@@ -86,15 +86,17 @@ export default function GenerateQR() {
       }
 
       // Parse all users (comma-separated email/ID list)
-      const allUsers = formData.allUsers
-        .split(',')
-        .map(id => id.trim())
-        .filter(id => id.length > 0);
+      const requiredUsers = formData.requiredUsers // ## PERBAIKAN: Gunakan nama yang konsisten
+      .split(',')
+      .map(id => id.trim())
+      .filter(id => id.length > 0);
 
-      if (allUsers.length === 0) {
-        toast.error('Please provide at least one user ID/email');
-        return;
-      }
+    if (requiredUsers.length === 0) { // ## PERBAIKAN: Gunakan nama yang konsisten
+      toast.error('Please provide at least one user ID/email for penalties');
+      setLoading(false);
+      return;
+    }
+
 
       await generateScheduledQR(
         formData.title,
@@ -104,7 +106,7 @@ export default function GenerateQR() {
         formData.expReward,
         formData.penaltyExp,
         profile.uid,
-        allUsers
+        requiredUsers
       );
 
       toast.success('QR Session created successfully!');
@@ -118,7 +120,7 @@ export default function GenerateQR() {
         endTime: '',
         expReward: 10,
         penaltyExp: 5,
-        allUsers: ''
+        requiredUsers: ''
       });
       loadSessions();
     } catch (error) {
@@ -351,8 +353,8 @@ export default function GenerateQR() {
                   </label>
                   <textarea
                     required
-                    value={formData.allUsers}
-                    onChange={(e) => setFormData({...formData, allUsers: e.target.value})}
+                    value={formData.requiredUsers}
+                    onChange={(e) => setFormData({...formData, requiredUsers: e.target.value})}
                     rows={3}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     placeholder="Enter user IDs or emails separated by commas. All listed users will get penalties if they don't check-in."
@@ -428,9 +430,9 @@ export default function GenerateQR() {
                       {session.startDateTime.toDate().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} - {session.endDateTime.toDate().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                     </div>
                     <div className="flex items-center text-gray-600">
-                      <Users className="w-4 h-4 mr-1" />
-                      {session.attendees.length}/{session.allUsers.length}
-                    </div>
+  <Users className="w-4 h-4 mr-1" />
+  {(session.attendees || []).length}/{(session.allUsers || []).length}
+</div>
                     <div className="flex items-center text-gray-600">
                       <Award className="w-4 h-4 mr-1" />
                       +{session.expReward} EXP / -{session.penaltyExp} EXP
@@ -443,7 +445,7 @@ export default function GenerateQR() {
                         <AlertTriangle className="w-3 h-3 mr-1" />
                         Penalties Apply
                       </span>
-                      {status.status === 'ended' && session.allUsers && session.allUsers.length > 0 && (
+                      {status.status === 'ended' && Array.isArray(session.allUsers) && session.allUsers.length > 0 && (
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
@@ -552,24 +554,24 @@ export default function GenerateQR() {
                   <div>
                     <h4 className="text-sm font-medium text-gray-900 mb-2">Statistics</h4>
                     <div className="bg-gray-50 rounded-lg p-3 space-y-2 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Attendees:</span>
-                        <span className="text-gray-900 font-medium">{selectedSession.attendees.length}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Total Users:</span>
-                        <span className="text-gray-900 font-medium">{selectedSession.allUsers.length}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Attendance:</span>
-                        <span className="text-gray-900 font-medium">
-                          {selectedSession.allUsers.length > 0 ? ((selectedSession.attendees.length / selectedSession.allUsers.length) * 100).toFixed(1) : 0}%
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Penalized:</span>
-                        <span className="text-red-600 font-medium">{selectedSession.penalizedUsers.length}</span>
-                      </div>
+                    <div className="flex justify-between">
+  <span className="text-gray-600">Attendees:</span>
+  <span className="text-gray-900 font-medium">{(selectedSession.attendees || []).length}</span>
+</div>
+<div className="flex justify-between">
+  <span className="text-gray-600">Total Users:</span>
+  <span className="text-gray-900 font-medium">{(selectedSession.allUsers || []).length}</span>
+</div>
+<div className="flex justify-between">
+  <span className="text-gray-600">Attendance:</span>
+  <span className="text-gray-900 font-medium">
+    {(selectedSession.allUsers || []).length > 0 ? (((selectedSession.attendees || []).length / (selectedSession.allUsers || []).length) * 100).toFixed(1) : 0}%
+  </span>
+</div>
+<div className="flex justify-between">
+  <span className="text-gray-600">Penalized:</span>
+  <span className="text-red-600 font-medium">{(selectedSession.penalizedUsers || []).length}</span>
+</div>
                     </div>
                   </div>
 
@@ -582,11 +584,11 @@ export default function GenerateQR() {
                     </div>
                   )}
 
-                  {selectedSession.attendees.length > 0 && (
-                    <div>
-                      <h4 className="text-sm font-medium text-gray-900 mb-2">Attendees</h4>
-                      <div className="bg-gray-50 rounded-lg p-3 max-h-32 overflow-y-auto">
-                        {selectedSession.attendees.map((userId, index) => (
+{(selectedSession.attendees || []).length > 0 && (
+  <div>
+    <h4 className="text-sm font-medium text-gray-900 mb-2">Attendees</h4>
+    <div className="bg-gray-50 rounded-lg p-3 max-h-32 overflow-y-auto">
+      {(selectedSession.attendees || []).map((userId, index) => (
                           <div key={index} className="text-xs text-green-600 font-mono truncate">
                             {userId} ✓
                           </div>
@@ -595,25 +597,25 @@ export default function GenerateQR() {
                     </div>
                   )}
 
-                  {selectedSession.allUsers && selectedSession.allUsers.length > 0 && (
-                    <div>
-                      <h4 className="text-sm font-medium text-gray-900 mb-2">All Users</h4>
-                      <div className="bg-gray-50 rounded-lg p-3 max-h-32 overflow-y-auto">
-                        {selectedSession.allUsers.map((userId, index) => (
-                          <div key={index} className={`text-xs font-mono truncate ${
-                            selectedSession.attendees.includes(userId) 
-                              ? 'text-green-600' 
-                              : selectedSession.penalizedUsers.includes(userId)
-                              ? 'text-red-600'
-                              : 'text-gray-600'
-                          }`}>
-                            {userId} {selectedSession.attendees.includes(userId) && '✓'}
-                            {selectedSession.penalizedUsers.includes(userId) && '⚠'}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+{(selectedSession.allUsers || []).length > 0 && (
+  <div>
+    <h4 className="text-sm font-medium text-gray-900 mb-2">All Users</h4>
+    <div className="bg-gray-50 rounded-lg p-3 max-h-32 overflow-y-auto">
+      {(selectedSession.allUsers || []).map((userId, index) => (
+        <div key={index} className={`text-xs font-mono truncate ${
+          (selectedSession.attendees || []).includes(userId) 
+            ? 'text-green-600' 
+            : (selectedSession.penalizedUsers || []).includes(userId)
+            ? 'text-red-600'
+            : 'text-gray-600'
+        }`}>
+          {userId} {(selectedSession.attendees || []).includes(userId) && '✓'}
+          {(selectedSession.penalizedUsers || []).includes(userId) && '⚠'}
+        </div>
+      ))}
+    </div>
+  </div>
+)}
                 </div>
               </div>
             </div>
