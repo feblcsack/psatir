@@ -4,19 +4,12 @@ import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
 const firebaseConfig = {
-
-    apiKey: "AIzaSyD-U-s2lmYrUjY4sJ2_9erE4tOIvv3cIEU",
-  
-    authDomain: "psatir-37a24.firebaseapp.com",
-  
-    projectId: "psatir-37a24",
-  
-    storageBucket: "psatir-37a24.firebasestorage.app",
-  
-    messagingSenderId: "256227086119",
-  
-    appId: "1:256227086119:web:6e63db7e4f14380b4c6302"
-  
+    apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY!,
+    authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN!,
+    projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID!,
+    storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET!,
+    messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID!,
+    appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID!,
   };
   
 
