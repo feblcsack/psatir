@@ -31,7 +31,7 @@ export default function UserDashboard() {
         setStats({
           availableTasks,
           completedTasks: 0,
-          checkedInToday: checkedIn,
+          checkedInToday: true,
           currentStreak: 0
         });
       } catch (error) {
