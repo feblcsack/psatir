@@ -258,10 +258,13 @@ export default function Submissions() {
 
                     <div className="space-y-4">
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-                        <div className="bg-gray-50 p-3 rounded-lg">
-                          <span className="text-gray-500 font-medium">User ID:</span>
-                          <p className="text-gray-800 font-mono text-xs mt-1 break-all">{submission.userId}</p>
-                        </div>
+                      <div className="bg-gray-50 p-3 rounded-lg">
+  <span className="text-gray-500 font-medium">Submitted by:</span>
+  <p className="text-gray-800 mt-1">{submission.userName || 'Unknown User'}</p>
+  {submission.userEmail && (
+    <p className="text-gray-500 text-xs mt-0.5">{submission.userEmail}</p>
+  )}
+</div>
                         <div className="bg-gray-50 p-3 rounded-lg">
                           <span className="text-gray-500 font-medium">Submitted:</span>
                           <p className="text-gray-800 mt-1">{new Date(submission.submittedAt).toLocaleDateString('en-US', {

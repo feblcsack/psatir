@@ -1,108 +1,127 @@
 'use client';
 
 import { useAuth } from '@/context/AuthContext';
-import { User, Mail, Calendar, Star, Trophy, CheckCircle } from 'lucide-react';
+import { User, Mail, Hash, Trophy } from 'lucide-react';
+import Image from 'next/image'; // Impor komponen Image dari Next.js
+
+// Komponen untuk Tampilan Loading (Skeleton)
+const ProfileSkeleton = () => (
+  <div className="max-w-4xl mx-auto space-y-8 animate-pulse">
+    <div className="h-10 bg-slate-200 rounded w-1/3"></div>
+    <div className="bg-white rounded-xl border border-slate-200">
+      <div className="p-8">
+        <div className="flex items-center space-x-6">
+          <div className="w-24 h-24 bg-slate-200 rounded-full"></div>
+          <div className="space-y-3">
+            <div className="h-8 bg-slate-300 rounded w-48"></div>
+            <div className="h-5 bg-slate-200 rounded w-32"></div>
+          </div>
+        </div>
+      </div>
+      <div className="border-t border-slate-100 px-8 py-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="space-y-2"><div className="h-4 bg-slate-200 rounded w-16"></div><div className="h-5 bg-slate-200 rounded w-40"></div></div>
+          <div className="space-y-2"><div className="h-4 bg-slate-200 rounded w-16"></div><div className="h-5 bg-slate-200 rounded w-24"></div></div>
+          <div className="space-y-2"><div className="h-4 bg-slate-200 rounded w-16"></div><div className="h-5 bg-slate-200 rounded w-32"></div></div>
+        </div>
+      </div>
+    </div>
+    <div className="bg-white rounded-xl border border-slate-200 p-8 h-32"></div>
+  </div>
+);
 
 export default function UserProfile() {
   const { profile } = useAuth();
 
   if (!profile) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
-      </div>
-    );
+    return <ProfileSkeleton />;
   }
+  
+  const progressPercentage = profile.exp % 100;
 
   return (
-    <div className="max-w-3xl">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">My Profile</h1>
-        <p className="text-gray-600">Manage your account information and view your progress</p>
+    <div className="max-w-4xl mx-auto space-y-8">
+      {/* Header Halaman */}
+      <div>
+        <h1 className="text-3xl font-medium text-slate-800">My Profile</h1>
+        <p className="mt-2 text-slate-500">View your account information and progress.</p>
       </div>
 
-      <div className="bg-white shadow rounded-lg overflow-hidden">
-        {/* Profile header */}
-        <div className="px-6 py-4 bg-gradient-to-r from-indigo-500 to-purple-600">
-          <div className="flex items-center">
-            <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center">
-              <User className="w-10 h-10 text-indigo-600" />
+      {/* Panel Profil Utama */}
+      <div className="bg-white rounded-xl border border-slate-200/80">
+        
+        {/* Bagian Atas: Avatar dan Nama */}
+        <div className="p-8">
+          <div className="flex items-center space-x-6">
+            <div className="relative w-24 h-24">
+              {/* ## PERUBAHAN DI SINI: Menggunakan gambar lokal */}
+              <Image
+                // Arahkan 'src' ke gambar Anda di folder /public
+                src="/wahyu.png" 
+                alt="User Avatar"
+                width={96}
+                height={96}
+                className="rounded-full object-cover border-2 border-white shadow-sm"
+                priority
+              />
             </div>
-            <div className="ml-6">
-              <h2 className="text-2xl font-bold text-white">{profile.name}</h2>
-              <p className="text-indigo-100">Level {profile.level} • {profile.exp} EXP</p>
+            <div>
+              <h2 className="text-3xl font-semibold text-slate-900">{profile.name}</h2>
+              <p className="text-slate-500 mt-1">Level {profile.level} • {profile.exp} Total EXP</p>
             </div>
           </div>
         </div>
-
-        {/* Profile details */}
-        <div className="px-6 py-6">
-          <dl className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-            <div>
-              <dt className="text-sm font-medium text-gray-500 flex items-center">
-                <Mail className="w-4 h-4 mr-2" />
-                Email
-              </dt>
-              <dd className="mt-1 text-sm text-gray-900">{profile.email}</dd>
+        
+        {/* Bagian Tengah: Detail Informasi */}
+        <div className="border-t border-slate-100 px-8 py-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-x-8 gap-y-6">
+            {/* Info Email */}
+            <div className="flex items-start space-x-3">
+              <Mail className="w-5 h-5 text-slate-400 mt-0.5 flex-shrink-0" strokeWidth={1.5} />
+              <div>
+                <dt className="text-sm text-slate-500">Email</dt>
+                <dd className="mt-0.5 font-medium text-slate-800 break-all">{profile.email}</dd>
+              </div>
             </div>
-            
-            <div>
-              <dt className="text-sm font-medium text-gray-500 flex items-center">
-                <User className="w-4 h-4 mr-2" />
-                Role
-              </dt>
-              <dd className="mt-1">
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                  {profile.role}
-                </span>
-              </dd>
+            {/* Info User ID */}
+            <div className="flex items-start space-x-3">
+              <Hash className="w-5 h-5 text-slate-400 mt-0.5 flex-shrink-0" strokeWidth={1.5} />
+              <div>
+                <dt className="text-sm text-slate-500">User ID</dt>
+                <dd className="mt-0.5 font-mono text-xs font-medium text-slate-800 break-all">{profile.uid}</dd>
+              </div>
             </div>
-            
-            
-            <div>
-              <dt className="text-sm font-medium text-gray-500 flex items-center">
-                <Trophy className="w-4 h-4 mr-2" />
-                Current Level
-              </dt>
-              <dd className="mt-1 text-sm text-gray-900">Level {profile.level}</dd>
+            {/* Info Role */}
+            <div className="flex items-start space-x-3">
+              <Trophy className="w-5 h-5 text-slate-400 mt-0.5 flex-shrink-0" strokeWidth={1.5} />
+              <div>
+                <dt className="text-sm text-slate-500">Role</dt>
+                <dd className="mt-1">
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200">
+                    {profile.role.charAt(0).toUpperCase() + profile.role.slice(1)}
+                  </span>
+                </dd>
+              </div>
             </div>
-          </dl>
-        </div>
-
-        {/* Progress section */}
-        <div className="px-6 py-4 bg-gray-50 border-t border-gray-200">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Progress to Next Level</h3>
-          <div className="w-full bg-gray-200 rounded-full h-3">
-            <div 
-              className="bg-indigo-600 h-3 rounded-full transition-all duration-300" 
-              style={{ width: `${(profile.exp % 100)}%` }}
-            ></div>
-          </div>
-          <div className="flex justify-between text-sm text-gray-600 mt-2">
-            <span>{profile.exp % 100}/100 EXP</span>
-            <span>Next: Level {profile.level + 1}</span>
           </div>
         </div>
       </div>
-
-      {/* Stats cards */}
-      <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white shadow rounded-lg p-6 text-center">
-          <Star className="w-8 h-8 mx-auto text-yellow-500 mb-2" />
-          <h3 className="text-lg font-medium text-gray-900">{profile.exp}</h3>
-          <p className="text-gray-600">Total Experience</p>
+      
+      {/* Panel Progress Level */}
+      <div className="bg-white rounded-xl border border-slate-200/80 p-8">
+        <div className="flex justify-between items-center mb-3">
+            <h3 className="text-lg font-medium text-slate-800">Progress to Next Level</h3>
+            <span className="text-sm font-semibold text-slate-500">{profile.exp % 100} / 100 EXP</span>
         </div>
-        
-        <div className="bg-white shadow rounded-lg p-6 text-center">
-          <Trophy className="w-8 h-8 mx-auto text-purple-500 mb-2" />
-          <h3 className="text-lg font-medium text-gray-900">{profile.level}</h3>
-          <p className="text-gray-600">Current Level</p>
+        <div className="w-full bg-slate-200 rounded-full h-2.5">
+          <div 
+            className="bg-slate-800 h-2.5 rounded-full transition-all duration-500 ease-out" 
+            style={{ width: `${progressPercentage}%` }}
+          ></div>
         </div>
-        
-        <div className="bg-white shadow rounded-lg p-6 text-center">
-          <CheckCircle className="w-8 h-8 mx-auto text-green-500 mb-2" />
-          <h3 className="text-lg font-medium text-gray-900">0</h3>
-          <p className="text-gray-600">Tasks Completed</p>
+        <div className="flex justify-between text-sm mt-2">
+            <span className="font-medium text-slate-500">Level {profile.level}</span>
+            <span className="font-medium text-slate-400">Next: Level {profile.level + 1}</span>
         </div>
       </div>
     </div>
