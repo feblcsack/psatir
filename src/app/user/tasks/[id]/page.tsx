@@ -3,9 +3,9 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useParams, useRouter } from 'next/navigation';
-import { getTasks, Task, submitTaskProof } from '@/lib/tasks';
+import { getTasks, Task, submitTaskProof, getUserTaskSubmission, TaskSubmission } from '@/lib/tasks';
 import { compressAndConvertToBase64, isFileSizeValid, getFileSizeString } from '@/lib/imageUpload';
-import { Star, Clock, Upload, ArrowLeft, X, Eye, Image as ImageIcon, CheckCircle, AlertCircle } from 'lucide-react';
+import { Star, Clock, Upload, ArrowLeft, X, Eye, Image as ImageIcon, CheckCircle, AlertCircle, CheckCircle2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function TaskDetail() {
@@ -15,6 +15,7 @@ export default function TaskDetail() {
   const taskId = params.id as string;
   
   const [task, setTask] = useState<Task | null>(null);
+  const [userSubmission, setUserSubmission] = useState<TaskSubmission | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [proofText, setProofText] = useState('');
@@ -25,11 +26,18 @@ export default function TaskDetail() {
   const [compressionProgress, setCompressionProgress] = useState(0);
 
   useEffect(() => {
-    const loadTask = async () => {
+    const loadTaskAndSubmission = async () => {
+      if (!profile) return;
+      
       try {
         const tasks = await getTasks();
         const foundTask = tasks.find(t => t.id === taskId);
         setTask(foundTask || null);
+        
+        if (foundTask) {
+          const submission = await getUserTaskSubmission(taskId, profile.uid);
+          setUserSubmission(submission);
+        }
       } catch (error) {
         console.error('Error loading task:', error);
       } finally {
@@ -37,8 +45,8 @@ export default function TaskDetail() {
       }
     };
 
-    loadTask();
-  }, [taskId]);
+    loadTaskAndSubmission();
+  }, [taskId, profile]);
 
   // Handle file selection and create preview
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -131,7 +139,11 @@ export default function TaskDetail() {
       });
 
       toast.success('Proof submitted successfully! Waiting for admin review.');
-      router.push('/user/tasks');
+      
+      // Refresh submission status
+      const submission = await getUserTaskSubmission(taskId, profile.uid);
+      setUserSubmission(submission);
+      
     } catch (error) {
       console.error('Error submitting proof:', error);
       toast.error('Failed to submit proof. Please try again.');
@@ -149,6 +161,32 @@ export default function TaskDetail() {
 
   const isImageFile = (file: File) => {
     return file.type.startsWith('image/');
+  };
+
+  const getSubmissionStatusBadge = (submission: TaskSubmission) => {
+    switch (submission.status) {
+      case 'pending':
+        return (
+          <div className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-yellow-100 text-yellow-800">
+            <Clock className="w-4 h-4 mr-1" />
+            Pending Review
+          </div>
+        );
+      case 'accepted':
+        return (
+          <div className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+            <CheckCircle2 className="w-4 h-4 mr-1" />
+            Accepted (+{task?.expReward} EXP)
+          </div>
+        );
+      case 'rejected':
+        return (
+          <div className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800">
+            <X className="w-4 h-4 mr-1" />
+            Rejected
+          </div>
+        );
+    }
   };
 
   if (loading) {
@@ -173,6 +211,9 @@ export default function TaskDetail() {
     );
   }
 
+  const canSubmit = !userSubmission || userSubmission.status === 'rejected';
+  const isCompleted = userSubmission?.status === 'accepted';
+
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
       <button
@@ -187,9 +228,12 @@ export default function TaskDetail() {
         <div className="px-6 py-6 border-b border-gray-50">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <h1 className="text-2xl font-medium text-gray-900">{task.title}</h1>
-            <div className="flex items-center text-lg font-medium text-emerald-600">
-              <Star className="w-5 h-5 mr-1" />
-              {task.expReward} EXP
+            <div className="flex items-center gap-3">
+              <div className="flex items-center text-lg font-medium text-emerald-600">
+                <Star className="w-5 h-5 mr-1" />
+                {task.expReward} EXP
+              </div>
+              {userSubmission && getSubmissionStatusBadge(userSubmission)}
             </div>
           </div>
           <div className="flex items-center text-sm text-gray-400 mt-3">
@@ -202,160 +246,220 @@ export default function TaskDetail() {
           <h3 className="text-lg font-medium text-gray-900 mb-4">Description</h3>
           <p className="text-gray-600 whitespace-pre-wrap mb-8 leading-relaxed">{task.description}</p>
 
-          <div className="border-t border-gray-50 pt-8">
-            <h3 className="text-lg font-medium text-gray-900 mb-6">Submit Proof</h3>
-            
-            {/* Info Banner */}
-            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6">
-              <div className="flex items-start">
-                <AlertCircle className="w-5 h-5 text-blue-600 mt-0.5 mr-3 flex-shrink-0" />
-                <div className="text-sm">
-                  <p className="text-blue-800 font-medium mb-1">Image Upload Guidelines</p>
-                  <ul className="text-blue-700 space-y-1">
-                    <li>• Maximum file size: 10MB</li>
-                    <li>• Supported formats: JPG, PNG, GIF, WebP</li>
-                    <li>• Images will be automatically compressed for faster loading</li>
-                  </ul>
+          {/* Task Completed Message */}
+          {isCompleted && (
+            <div className="bg-green-50 border border-green-200 rounded-xl p-6 mb-8">
+              <div className="flex items-center">
+                <CheckCircle2 className="w-8 h-8 text-green-600 mr-4" />
+                <div>
+                  <h4 className="text-lg font-semibold text-green-800 mb-1">Task Completed! 🎉</h4>
+                  <p className="text-green-700">
+                    You've successfully completed this task and earned <strong>{task.expReward} EXP</strong>!
+                  </p>
+                  <p className="text-sm text-green-600 mt-2">
+                    Submitted on {userSubmission.submittedAt.toLocaleDateString()} • 
+                    Reviewed on {userSubmission.reviewedAt?.toLocaleDateString()}
+                  </p>
                 </div>
               </div>
             </div>
+          )}
 
-            <form onSubmit={handleSubmitProof} className="space-y-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-3">
-                  Proof Description
-                </label>
-                <textarea
-                  value={proofText}
-                  onChange={(e) => setProofText(e.target.value)}
-                  rows={4}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent resize-none"
-                  placeholder="Describe what you did to complete this task..."
-                />
+          {/* Show existing submission info if pending */}
+          {userSubmission && userSubmission.status === 'pending' && (
+            <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6 mb-8">
+              <div className="flex items-center">
+                <Clock className="w-8 h-8 text-yellow-600 mr-4" />
+                <div>
+                  <h4 className="text-lg font-semibold text-yellow-800 mb-1">Submission Under Review</h4>
+                  <p className="text-yellow-700">
+                    Your proof has been submitted and is waiting for admin review.
+                  </p>
+                  <p className="text-sm text-yellow-600 mt-2">
+                    Submitted on {userSubmission.submittedAt.toLocaleDateString()}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Show rejection message and allow resubmit */}
+          {userSubmission && userSubmission.status === 'rejected' && (
+            <div className="bg-red-50 border border-red-200 rounded-xl p-6 mb-8">
+              <div className="flex items-center">
+                <X className="w-8 h-8 text-red-600 mr-4" />
+                <div>
+                  <h4 className="text-lg font-semibold text-red-800 mb-1">Submission Rejected</h4>
+                  <p className="text-red-700">
+                    Your previous submission was rejected. You can submit new proof below.
+                  </p>
+                  <p className="text-sm text-red-600 mt-2">
+                    Reviewed on {userSubmission.reviewedAt?.toLocaleDateString()}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Submit Form - Only show if can submit */}
+          {canSubmit && (
+            <div className="border-t border-gray-50 pt-8">
+              <h3 className="text-lg font-medium text-gray-900 mb-6">
+                {userSubmission?.status === 'rejected' ? 'Resubmit Proof' : 'Submit Proof'}
+              </h3>
+              
+              {/* Info Banner */}
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6">
+                <div className="flex items-start">
+                  <AlertCircle className="w-5 h-5 text-blue-600 mt-0.5 mr-3 flex-shrink-0" />
+                  <div className="text-sm">
+                    <p className="text-blue-800 font-medium mb-1">Image Upload Guidelines</p>
+                    <ul className="text-blue-700 space-y-1">
+                      <li>• Maximum file size: 10MB</li>
+                      <li>• Supported formats: JPG, PNG, GIF, WebP</li>
+                      <li>• Images will be automatically compressed for faster loading</li>
+                    </ul>
+                  </div>
+                </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-3">
-                  Upload Image <span className="text-gray-400">(Optional)</span>
-                </label>
-                
-                {!proofFile ? (
-                  <div className="border-2 border-dashed border-gray-200 rounded-xl p-8 text-center hover:border-gray-300 transition-colors">
-                    <input
-                      type="file"
-                      onChange={handleFileChange}
-                      accept="image/*"
-                      className="hidden"
-                      id="file-upload"
-                    />
-                    <label htmlFor="file-upload" className="cursor-pointer">
-                      <div className="inline-flex items-center justify-center w-12 h-12 bg-gray-50 rounded-full mb-4">
-                        <ImageIcon className="w-6 h-6 text-gray-400" />
-                      </div>
-                      <p className="text-base font-medium text-gray-900 mb-2">Upload an image</p>
-                      <p className="text-sm text-gray-500 mb-1">Click to browse or drag and drop</p>
-                      <p className="text-xs text-gray-400">JPG, PNG, GIF, WebP (Max 10MB)</p>
-                    </label>
-                  </div>
-                ) : (
-                  <div className="border border-gray-200 rounded-xl overflow-hidden">
-                    {/* File Info Header */}
-                    <div className="flex items-center justify-between p-4 bg-gray-50">
-                      <div className="flex items-center space-x-3">
-                        {getFileIcon(proofFile)}
-                        <div>
-                          <p className="text-sm font-medium text-gray-900 truncate max-w-xs">
-                            {proofFile.name}
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            {getFileSizeString(proofFile.size)}
-                          </p>
+              <form onSubmit={handleSubmitProof} className="space-y-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-3">
+                    Proof Description
+                  </label>
+                  <textarea
+                    value={proofText}
+                    onChange={(e) => setProofText(e.target.value)}
+                    rows={4}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent resize-none"
+                    placeholder="Describe what you did to complete this task..."
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-3">
+                    Upload Image <span className="text-gray-400">(Optional)</span>
+                  </label>
+                  
+                  {!proofFile ? (
+                    <div className="border-2 border-dashed border-gray-200 rounded-xl p-8 text-center hover:border-gray-300 transition-colors">
+                      <input
+                        type="file"
+                        onChange={handleFileChange}
+                        accept="image/*"
+                        className="hidden"
+                        id="file-upload"
+                      />
+                      <label htmlFor="file-upload" className="cursor-pointer">
+                        <div className="inline-flex items-center justify-center w-12 h-12 bg-gray-50 rounded-full mb-4">
+                          <ImageIcon className="w-6 h-6 text-gray-400" />
                         </div>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        {previewUrl && (
-                          <button
-                            type="button"
-                            onClick={() => setShowPreview(true)}
-                            className="p-2 text-gray-500 hover:text-gray-700 rounded-lg hover:bg-white transition-colors"
-                            title="Preview image"
-                          >
-                            <Eye className="w-4 h-4" />
-                          </button>
-                        )}
-                        <button
-                          type="button"
-                          onClick={removeFile}
-                          className="p-2 text-gray-500 hover:text-red-500 rounded-lg hover:bg-white transition-colors"
-                          title="Remove file"
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
-                      </div>
+                        <p className="text-base font-medium text-gray-900 mb-2">Upload an image</p>
+                        <p className="text-sm text-gray-500 mb-1">Click to browse or drag and drop</p>
+                        <p className="text-xs text-gray-400">JPG, PNG, GIF, WebP (Max 10MB)</p>
+                      </label>
                     </div>
-                    
-                    {/* Image Preview */}
-                    {previewUrl && isImageFile(proofFile) && (
-                      <div className="p-4">
-                        <div className="relative">
-                          <img
-                            src={previewUrl}
-                            alt="Preview"
-                            className="w-full max-h-64 object-contain rounded-lg border border-gray-100 bg-gray-50"
-                          />
-                          <div className="absolute top-2 right-2">
+                  ) : (
+                    <div className="border border-gray-200 rounded-xl overflow-hidden">
+                      {/* File Info Header */}
+                      <div className="flex items-center justify-between p-4 bg-gray-50">
+                        <div className="flex items-center space-x-3">
+                          {getFileIcon(proofFile)}
+                          <div>
+                            <p className="text-sm font-medium text-gray-900 truncate max-w-xs">
+                              {proofFile.name}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              {getFileSizeString(proofFile.size)}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          {previewUrl && (
                             <button
                               type="button"
                               onClick={() => setShowPreview(true)}
-                              className="p-1.5 bg-black bg-opacity-50 text-white rounded-lg hover:bg-opacity-75 transition-colors"
+                              className="p-2 text-gray-500 hover:text-gray-700 rounded-lg hover:bg-white transition-colors"
+                              title="Preview image"
                             >
-                              <Eye className="w-3 h-3" />
+                              <Eye className="w-4 h-4" />
                             </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={removeFile}
+                            className="p-2 text-gray-500 hover:text-red-500 rounded-lg hover:bg-white transition-colors"
+                            title="Remove file"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                      
+                      {/* Image Preview */}
+                      {previewUrl && isImageFile(proofFile) && (
+                        <div className="p-4">
+                          <div className="relative">
+                            <img
+                              src={previewUrl}
+                              alt="Preview"
+                              className="w-full max-h-64 object-contain rounded-lg border border-gray-100 bg-gray-50"
+                            />
+                            <div className="absolute top-2 right-2">
+                              <button
+                                type="button"
+                                onClick={() => setShowPreview(true)}
+                                className="p-1.5 bg-black bg-opacity-50 text-white rounded-lg hover:bg-opacity-75 transition-colors"
+                              >
+                                <Eye className="w-3 h-3" />
+                              </button>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    )}
+                      )}
 
-                    {/* Compression Progress */}
-                    {processing && compressionProgress > 0 && (
-                      <div className="p-4 border-t border-gray-100">
-                        <div className="flex items-center justify-between text-sm text-gray-600 mb-2">
-                          <span>Processing image...</span>
-                          <span>{compressionProgress}%</span>
+                      {/* Compression Progress */}
+                      {processing && compressionProgress > 0 && (
+                        <div className="p-4 border-t border-gray-100">
+                          <div className="flex items-center justify-between text-sm text-gray-600 mb-2">
+                            <span>Processing image...</span>
+                            <span>{compressionProgress}%</span>
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-2">
+                            <div 
+                              className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                              style={{ width: `${compressionProgress}%` }}
+                            ></div>
+                          </div>
                         </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2">
-                          <div 
-                            className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                            style={{ width: `${compressionProgress}%` }}
-                          ></div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              <div className="flex justify-end pt-4 border-t border-gray-50">
-                <button
-                  type="submit"
-                  disabled={submitting || processing || (!proofText.trim() && !proofFile)}
-                  className="inline-flex items-center px-6 py-3 text-sm font-medium rounded-xl text-white bg-gray-900 hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-900 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  {submitting || processing ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                      {processing ? 'Processing...' : 'Submitting...'}
-                    </>
-                  ) : (
-                    <>
-                      <CheckCircle className="w-4 h-4 mr-2" />
-                      Submit Proof
-                    </>
+                      )}
+                    </div>
                   )}
-                </button>
-              </div>
-            </form>
-          </div>
+                </div>
+
+                <div className="flex justify-end pt-4 border-t border-gray-50">
+                  <button
+                    type="submit"
+                    disabled={submitting || processing || (!proofText.trim() && !proofFile)}
+                    className="inline-flex items-center px-6 py-3 text-sm font-medium rounded-xl text-white bg-gray-900 hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-900 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {submitting || processing ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                        {processing ? 'Processing...' : 'Submitting...'}
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle className="w-4 h-4 mr-2" />
+                        {userSubmission?.status === 'rejected' ? 'Resubmit Proof' : 'Submit Proof'}
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
         </div>
       </div>
 

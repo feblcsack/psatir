@@ -53,7 +53,10 @@ export default function Navbar() {
           {/* Logo and Navigation */}
           <div className="flex items-center">
             <div className="flex items-center space-x-2">
+              <Link href="/" className="flex items-center">
               <h1 className="text-xl font-semibold text-gray-900">Psatir</h1>
+              </Link>
+             
               {/* Role badge */}
               {profile?.role === 'admin' && (
                 <span className="px-2 py-1 text-xs font-medium bg-red-100 text-red-800 rounded-full">

@@ -44,6 +44,36 @@ export const createTask = async (task: Omit<Task, 'id' | 'createdAt'>) => {
   }
 };
 
+// Tambahkan fungsi ini di tasks.ts
+
+export const getUserTaskSubmission = async (taskId: string, userId: string): Promise<TaskSubmission | null> => {
+  try {
+    const q = query(
+      collection(db, 'tasks', taskId, 'submissions'),
+      where('userId', '==', userId)
+    );
+    const querySnapshot = await getDocs(q);
+    
+    if (querySnapshot.empty) {
+      return null;
+    }
+    
+    const doc = querySnapshot.docs[0];
+    const data = doc.data();
+    
+    return {
+      id: doc.id,
+      taskId,
+      ...data,
+      submittedAt: (data.submittedAt as any).toDate(),
+      reviewedAt: (data.reviewedAt as any)?.toDate?.() ?? undefined,
+    } as TaskSubmission;
+  } catch (error) {
+    console.error('Error getting user submission:', error);
+    return null;
+  }
+};
+
 export const getTasks = async (): Promise<Task[]> => {
   try {
     const q = query(collection(db, 'tasks'), orderBy('createdAt', 'desc'));
