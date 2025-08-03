@@ -554,3 +554,225 @@ export const getUserPenaltyHistory = async (userId: string, limitCount: number =
     throw error;
   }
 };
+
+// Tambahkan fungsi-fungsi ini ke qrService.ts
+
+/**
+ * Get all user IDs (basic version)
+ */
+export const getAllUserIds = async (): Promise<string[]> => {
+  try {
+    const usersSnapshot = await getDocs(collection(db, 'users'));
+    return usersSnapshot.docs.map(doc => doc.id);
+  } catch (error) {
+    console.error('Error fetching user IDs:', error);
+    return [];
+  }
+};
+
+/**
+ * Get all users with basic info (lebih informatif untuk admin)
+ */
+export const getAllUsersBasicInfo = async (): Promise<Array<{
+  uid: string;
+  name: string;
+  email: string;
+  level: number;
+  exp: number;
+  isActive?: boolean;
+}>> => {
+  try {
+    const usersSnapshot = await getDocs(collection(db, 'users'));
+    return usersSnapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        uid: doc.id,
+        name: data.name || data.displayName || 'Unknown User',
+        email: data.email || 'No email',
+        level: data.level || 1,
+        exp: data.exp || data.experience || 0,
+        isActive: data.isActive !== false // default true jika tidak ada field
+      };
+    });
+  } catch (error) {
+    console.error('Error fetching users basic info:', error);
+    return [];
+  }
+};
+
+/**
+ * Get active users only (yang bisa kena penalty)
+ */
+export const getActiveUserIds = async (): Promise<string[]> => {
+  try {
+    const q = query(
+      collection(db, 'users'),
+      where('isActive', '!=', false) // Ambil user yang active atau tidak ada field isActive
+    );
+    const usersSnapshot = await getDocs(q);
+    return usersSnapshot.docs.map(doc => doc.id);
+  } catch (error) {
+    console.error('Error fetching active user IDs:', error);
+    // Fallback ke semua user jika query gagal
+    return getAllUserIds();
+  }
+};
+
+/**
+ * Get users by role/level (jika ada sistem role)
+ */
+export const getUsersByRole = async (role?: string, minLevel?: number): Promise<string[]> => {
+  try {
+    let q = query(collection(db, 'users'));
+    
+    // Filter berdasarkan role jika ada
+    if (role) {
+      q = query(q, where('role', '==', role));
+    }
+    
+    // Filter berdasarkan level minimum jika ada
+    if (minLevel) {
+      q = query(q, where('level', '>=', minLevel));
+    }
+    
+    const usersSnapshot = await getDocs(q);
+    return usersSnapshot.docs.map(doc => doc.id);
+  } catch (error) {
+    console.error('Error fetching users by criteria:', error);
+    return [];
+  }
+};
+
+/**
+ * Helper untuk mendapatkan user berdasarkan berbagai kriteria
+ */
+export const getUsersByFilter = async (filter: {
+  includeInactive?: boolean;
+  role?: string;
+  minLevel?: number;
+  maxLevel?: number;
+  specificUsers?: string[];
+}): Promise<string[]> => {
+  try {
+    // Jika ada specific users, return langsung
+    if (filter.specificUsers && filter.specificUsers.length > 0) {
+      return filter.specificUsers;
+    }
+
+    let q = query(collection(db, 'users'));
+    
+    // Filter aktif/tidak aktif
+    if (!filter.includeInactive) {
+      q = query(q, where('isActive', '!=', false));
+    }
+    
+    // Filter role
+    if (filter.role) {
+      q = query(q, where('role', '==', filter.role));
+    }
+    
+    // Filter level
+    if (filter.minLevel) {
+      q = query(q, where('level', '>=', filter.minLevel));
+    }
+    if (filter.maxLevel) {
+      q = query(q, where('level', '<=', filter.maxLevel));
+    }
+    
+    const usersSnapshot = await getDocs(q);
+    return usersSnapshot.docs.map(doc => doc.id);
+  } catch (error) {
+    console.error('Error fetching users by filter:', error);
+    return [];
+  }
+};
+
+/**
+ * Generate QR dengan helper untuk auto-select users
+ */
+export const generateScheduledQRWithAutoUsers = async (
+  title: string,
+  description: string,
+  startDateTime: Date,
+  endDateTime: Date,
+  expReward: number,
+  penaltyExp: number,
+  generatedBy: string,
+  userFilter: {
+    useAllUsers?: boolean;
+    useActiveOnly?: boolean;
+    role?: string;
+    minLevel?: number;
+    maxLevel?: number;
+    specificUsers?: string[];
+  } = { useActiveOnly: true }
+): Promise<string> => {
+  try {
+    let allUsers: string[] = [];
+
+    if (userFilter.useAllUsers) {
+      allUsers = await getAllUserIds();
+    } else {
+      allUsers = await getUsersByFilter({
+        includeInactive: !userFilter.useActiveOnly,
+        role: userFilter.role,
+        minLevel: userFilter.minLevel,
+        maxLevel: userFilter.maxLevel,
+        specificUsers: userFilter.specificUsers
+      });
+    }
+
+    if (allUsers.length === 0) {
+      throw new Error('No users found with the specified criteria');
+    }
+
+    return await generateScheduledQR(
+      title,
+      description,
+      startDateTime,
+      endDateTime,
+      expReward,
+      penaltyExp,
+      generatedBy,
+      allUsers
+    );
+  } catch (error) {
+    console.error('Error generating QR with auto users:', error);
+    throw error;
+  }
+};
+
+/**
+ * Preview users yang akan terkena dampak sebelum membuat QR
+ */
+export const previewAffectedUsers = async (filter: {
+  includeInactive?: boolean;
+  role?: string;
+  minLevel?: number;
+  maxLevel?: number;
+  specificUsers?: string[];
+}): Promise<{
+  totalUsers: number;
+  users: Array<{
+    uid: string;
+    name: string;
+    email: string;
+    level: number;
+    exp: number;
+  }>;
+}> => {
+  try {
+    const userIds = await getUsersByFilter(filter);
+    const usersInfo = await getAllUsersBasicInfo();
+    
+    const filteredUsers = usersInfo.filter(user => userIds.includes(user.uid));
+    
+    return {
+      totalUsers: filteredUsers.length,
+      users: filteredUsers
+    };
+  } catch (error) {
+    console.error('Error previewing affected users:', error);
+    return { totalUsers: 0, users: [] };
+  }
+};

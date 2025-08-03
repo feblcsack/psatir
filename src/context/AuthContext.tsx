@@ -3,7 +3,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User, onAuthStateChanged } from 'firebase/auth';
 // ## 1. Impor yang Diperlukan dari Firestore
-import { doc, onSnapshot, Unsubscribe } from 'firebase/firestore'; 
+import { doc, onSnapshot, Unsubscribe, Timestamp } from 'firebase/firestore'; 
 import { auth, db } from '@/lib/firebase';
 // Tipe UserProfile tidak perlu diimpor dari auth.ts lagi jika didefinisikan di sini
 // import { getUserProfile, UserProfile } from '@/lib/auth';
@@ -16,6 +16,7 @@ export interface UserProfile {
   role: 'admin' | 'user';
   exp: number;
   level: number;
+  createdAt?: Timestamp;
   // tambahkan properti lain jika ada
 }
 
